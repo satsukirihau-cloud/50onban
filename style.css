@@ -1,0 +1,182 @@
+:root {
+    --primary-color: #4a90e2;
+    --bg-color: #f0f4f8;
+    --text-color: #333;
+    --board-bg: #ffffff;
+    --btn-bg: #e2e8f0;
+    --btn-hover: #cbd5e1;
+    --accent-color: #ff6b6b;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    /* Prevent selection for app-like feel */
+    -webkit-tap-highlight-color: transparent;
+}
+
+body,
+html {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    /* No scrolling */
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    background-color: var(--bg-color);
+}
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+    padding: 10px;
+    gap: 10px;
+}
+
+/* Display Area (Top) */
+.display-area {
+    flex: 0 0 12%;
+    /* Slightly reduced to give more space to board */
+    display: flex;
+    gap: 10px;
+    background: var(--board-bg);
+    padding: 8px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+#displayText {
+    flex: 1;
+    font-size: 2.5rem;
+    /* Larger text */
+    border: none;
+    background: transparent;
+    resize: none;
+    outline: none;
+    color: var(--text-color);
+    font-family: inherit;
+    font-weight: 900;
+    /* Extra bold */
+}
+
+.control-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: center;
+    min-width: 110px;
+}
+
+.control-btn {
+    flex: 1;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: inherit;
+}
+
+.control-btn.speak {
+    background-color: #48bb78;
+    color: white;
+}
+
+.control-btn.clear {
+    background-color: #f56565;
+    color: white;
+}
+
+.control-btn.backspace {
+    background-color: #ed8936;
+    color: white;
+}
+
+.control-btn:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+}
+
+/* Suggestion Area */
+.suggestion-area {
+    flex: 0 0 40px;
+    /* Fixed height for suggestions */
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 0 5px;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+.suggestion-chip {
+    background: #fff;
+    border: 2px solid var(--primary-color);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.suggestion-chip:active {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* Board Area (Bottom - Main) */
+.board-area {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+    gap: 4px;
+    /* Reduced gap */
+    background: var(--board-bg);
+    padding: 5px;
+    /* Reduced padding */
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.char-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--btn-bg);
+    border-radius: 6px;
+    font-size: 2.5rem;
+    /* Larger font */
+    font-weight: 900;
+    /* Extra bold */
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.1s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.char-btn:active {
+    background-color: var(--primary-color);
+    color: white;
+    transform: translateY(2px);
+    box-shadow: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .char-btn {
+        font-size: 1.8rem;
+    }
+
+    #displayText {
+        font-size: 2rem;
+    }
+}
