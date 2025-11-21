@@ -161,8 +161,8 @@ html {
     justify-content: center;
     background-color: var(--btn-bg);
     border-radius: 6px;
-    font-size: 2.5rem;
-    /* Larger font */
+    font-size: 4vmin;
+    /* Responsive font size */
     font-weight: 900;
     /* Extra bold */
     color: var(--text-color);
@@ -178,13 +178,84 @@ html {
     box-shadow: none;
 }
 
+.control-btn.settings {
+    background-color: #a0aec0;
+    color: white;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    /* Hidden by default */
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.close-btn {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 10px;
+}
+
+.close-btn:hover,
+.close-btn:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.setting-item {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.setting-item label {
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.setting-item select,
+.setting-item input[type="color"] {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 1rem;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .char-btn {
-        font-size: 1.8rem;
+        font-size: 3.5vmin;
     }
 
     #displayText {
-        font-size: 2rem;
+        font-size: 3vmin;
     }
 }

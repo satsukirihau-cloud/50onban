@@ -213,5 +213,34 @@ speakBtn.addEventListener('click', () => {
     speechSynthesis.speak(uttr);
 });
 
+// Settings Logic
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsModal = document.getElementById('settingsModal');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+const fontSelect = document.getElementById('fontSelect');
+const colorSelect = document.getElementById('colorSelect');
+
+settingsBtn.addEventListener('click', () => {
+    settingsModal.style.display = 'flex';
+});
+
+closeSettingsBtn.addEventListener('click', () => {
+    settingsModal.style.display = 'none';
+});
+
+window.addEventListener('click', (event) => {
+    if (event.target === settingsModal) {
+        settingsModal.style.display = 'none';
+    }
+});
+
+fontSelect.addEventListener('change', (e) => {
+    document.body.style.fontFamily = e.target.value;
+});
+
+colorSelect.addEventListener('input', (e) => {
+    document.documentElement.style.setProperty('--text-color', e.target.value);
+});
+
 // Initialize
 initBoard();
