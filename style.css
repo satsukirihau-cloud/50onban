@@ -31,17 +31,22 @@ html {
     display: flex;
     flex-direction: column;
     width: 100vw;
-    height: 100vh;
-    padding: 10px;
-    gap: 10px;
+    height: 100dvh;
+    /* Use dynamic viewport height for mobile browsers */
+    padding: 8px;
+    /* Slightly reduced padding */
+    gap: 8px;
 }
 
 /* Display Area (Top) */
 .display-area {
-    flex: 0 0 12%;
-    /* Slightly reduced to give more space to board */
+    flex: 0 0 auto;
+    /* Allow it to size based on content/min-height */
+    height: 12%;
+    /* Target height */
+    min-height: 60px;
     display: flex;
-    gap: 10px;
+    gap: 8px;
     background: var(--board-bg);
     padding: 8px;
     border-radius: 12px;
@@ -50,8 +55,8 @@ html {
 
 #displayText {
     flex: 1;
-    font-size: 2.5rem;
-    /* Larger text */
+    font-size: 2rem;
+    /* Adjusted for better fit */
     border: none;
     background: transparent;
     resize: none;
@@ -59,7 +64,6 @@ html {
     color: var(--text-color);
     font-family: inherit;
     font-weight: 900;
-    /* Extra bold */
 }
 
 .control-buttons {
@@ -67,18 +71,21 @@ html {
     flex-direction: column;
     gap: 4px;
     justify-content: center;
-    min-width: 110px;
+    min-width: 100px;
+    /* Slightly smaller min-width */
 }
 
 .control-btn {
     flex: 1;
     border: none;
-    border-radius: 8px;
-    font-size: 1.1rem;
+    border-radius: 6px;
+    font-size: 1rem;
     font-weight: 800;
     cursor: pointer;
     transition: background 0.2s;
     font-family: inherit;
+    padding: 0;
+    /* Remove default padding to fit text */
 }
 
 .control-btn.speak {
@@ -104,11 +111,10 @@ html {
 /* Suggestion Area */
 .suggestion-area {
     flex: 0 0 40px;
-    /* Fixed height for suggestions */
     display: flex;
     gap: 8px;
     overflow-x: auto;
-    padding: 0 5px;
+    padding: 0 4px;
     align-items: center;
     background: rgba(255, 255, 255, 0.5);
     border-radius: 8px;
@@ -119,8 +125,8 @@ html {
     background: #fff;
     border: 2px solid var(--primary-color);
     border-radius: 20px;
-    padding: 4px 12px;
-    font-size: 1.2rem;
+    padding: 4px 10px;
+    font-size: 1.1rem;
     font-weight: bold;
     color: var(--primary-color);
     cursor: pointer;
@@ -139,12 +145,14 @@ html {
     grid-template-columns: repeat(12, 1fr);
     grid-template-rows: repeat(5, 1fr);
     gap: 4px;
-    /* Reduced gap */
     background: var(--board-bg);
-    padding: 5px;
-    /* Reduced padding */
+    padding: 4px;
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    min-height: 0;
+    /* Crucial for nested flex/grid scrolling issues */
+    overflow: hidden;
+    /* Ensure no scrollbars appear */
 }
 
 .char-btn {
