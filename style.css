@@ -31,6 +31,8 @@ html {
     display: flex;
     flex-direction: column;
     width: 100vw;
+    height: 100vh;
+    /* Fallback for browsers that don't support dvh */
     height: 100dvh;
     /* Use dynamic viewport height for mobile browsers */
 
@@ -47,9 +49,10 @@ html {
 .display-area {
     flex: 0 0 auto;
     /* Allow it to size based on content/min-height */
-    height: 12%;
-    /* Target height */
+    /* height: 12%;  <-- Removed fixed percentage */
     min-height: 60px;
+    max-height: 20vh;
+    /* Limit height on small screens */
     display: flex;
     gap: 8px;
     background: var(--board-bg);
@@ -69,6 +72,8 @@ html {
     color: var(--text-color);
     font-family: inherit;
     font-weight: 900;
+    min-width: 0;
+    /* Allow shrinking */
 }
 
 .control-buttons {
@@ -78,6 +83,8 @@ html {
     justify-content: center;
     min-width: 100px;
     /* Slightly smaller min-width */
+    flex-shrink: 0;
+    /* Prevent buttons from collapsing */
 }
 
 .control-btn {
@@ -91,6 +98,9 @@ html {
     font-family: inherit;
     padding: 0;
     /* Remove default padding to fit text */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .control-btn.speak {
@@ -111,6 +121,67 @@ html {
 .control-btn:active {
     transform: scale(0.98);
     opacity: 0.9;
+}
+
+/* Landscape Adjustments for Mobile/Tablet */
+@media (orientation: landscape) and (max-height: 600px) {
+    .app-container {
+        flex-direction: row;
+        /* Side-by-side layout */
+    }
+
+    .display-area {
+        flex-direction: column;
+        width: 25%;
+        /* Take up left side */
+        height: 100%;
+        /* Full height */
+        max-height: none;
+        order: 2;
+        /* Put it on the right or left? Let's keep standard flow or adjust. 
+                   Actually, standard flow is Top->Bottom. 
+                   If we do row, it becomes Left->Right.
+                   Let's try keeping column but compacting header. */
+    }
+
+    /* Revert to column layout but optimize space */
+    .app-container {
+        flex-direction: column;
+    }
+
+    .display-area {
+        flex-direction: row;
+        height: auto;
+        min-height: 50px;
+        flex: 0 0 auto;
+        width: 100%;
+        order: 0;
+    }
+
+    .control-buttons {
+        flex-direction: row;
+        /* Horizontal buttons in landscape header */
+        min-width: auto;
+        width: auto;
+        flex: 0 0 auto;
+    }
+
+    #displayText {
+        font-size: 1.5rem;
+    }
+
+    .view-area {
+        /* Ensure grid takes remaining space */
+        flex: 1;
+    }
+}
+
+/* Specific fix for iPhone Landscape (notch handling) */
+@media (orientation: landscape) {
+    .app-container {
+        padding-left: max(env(safe-area-inset-left), 8px);
+        padding-right: max(env(safe-area-inset-right), 8px);
+    }
 }
 
 /* Suggestion Area */

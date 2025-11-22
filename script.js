@@ -49,6 +49,7 @@ const vocabulary = [
 function initBoard() {
     // Clear existing
     boardArea.innerHTML = '';
+    boardArea.style.display = 'grid'; // Ensure it's visible
 
     // Set grid columns based on data length
     boardArea.style.gridTemplateColumns = `repeat(${columns.length}, 1fr)`;
@@ -277,6 +278,37 @@ boardTextColor.addEventListener('input', (e) => {
     btns.forEach(btn => {
         btn.style.color = color;
     });
+});
+
+// Full Screen Logic
+const fullScreenBtn = document.getElementById('fullScreenBtn');
+
+function toggleFullScreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.log(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+            alert('このブラウザでは全画面表示がサポートされていないか、制限されています。');
+        });
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+}
+
+addTouchListener(fullScreenBtn, () => {
+    toggleFullScreen();
+});
+
+// Update button text based on state (optional but good for debugging/UX)
+document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) {
+        fullScreenBtn.textContent = '解除';
+        fullScreenBtn.style.backgroundColor = '#ed8936'; // Orange for exit
+    } else {
+        fullScreenBtn.textContent = '切り替え';
+        fullScreenBtn.style.backgroundColor = 'var(--primary-color)'; // Blue for enter
+    }
 });
 
 // Mode Selection Logic
