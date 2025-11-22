@@ -59,7 +59,8 @@ function initBoard() {
             btn.className = 'char-btn';
             btn.textContent = char;
 
-            btn.addEventListener('click', () => {
+            // Use the helper for consistent touch handling
+            addTouchListener(btn, () => {
                 handleInput(char);
             });
 
@@ -164,7 +165,7 @@ function updateSuggestions() {
         const chip = document.createElement('div');
         chip.className = 'suggestion-chip';
         chip.textContent = word;
-        chip.addEventListener('click', () => {
+        addTouchListener(chip, () => {
             // Append the rest of the word
             // We need to know which part matched.
             // Simplified: just replace the matching suffix or append?
@@ -193,25 +194,15 @@ function scrollToEnd() {
     displayText.scrollTop = displayText.scrollHeight;
 }
 
-// Event Listeners
-clearBtn.addEventListener('click', () => {
-    displayText.value = '';
-    updateSuggestions();
-});
-
-backspaceBtn.addEventListener('click', () => {
-    displayText.value = displayText.value.slice(0, -1);
-    updateSuggestions();
-});
-
-speakBtn.addEventListener('click', () => {
-    const text = displayText.value;
-    if (!text) return;
-
-    const uttr = new SpeechSynthesisUtterance(text);
-    uttr.lang = 'ja-JP';
-    speechSynthesis.speak(uttr);
-});
+// Helper to add touch-friendly listeners
+function addTouchListener(element, handler) {
+    // Use pointerdown for immediate response on modern devices
+    // Prevent default to stop potential double-firing or scrolling issues on buttons
+    element.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); // Prevent mouse emulation and scrolling (since we are no-scroll)
+        handler(e);
+    });
+}
 
 // Settings Logic
 const settingsBtn = document.getElementById('settingsBtn');
@@ -220,15 +211,18 @@ const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const fontSelect = document.getElementById('fontSelect');
 const colorSelect = document.getElementById('colorSelect');
 
-settingsBtn.addEventListener('click', () => {
+// Use click for Settings to avoid accidental triggers, or pointerdown if requested.
+// User said "Settings button cannot be changed on iPad", so let's try pointerdown to ensure it catches.
+addTouchListener(settingsBtn, () => {
     settingsModal.style.display = 'flex';
 });
 
-closeSettingsBtn.addEventListener('click', () => {
+addTouchListener(closeSettingsBtn, () => {
     settingsModal.style.display = 'none';
 });
 
-window.addEventListener('click', (event) => {
+// Modal background click
+window.addEventListener('pointerdown', (event) => {
     if (event.target === settingsModal) {
         settingsModal.style.display = 'none';
     }
@@ -238,8 +232,282 @@ fontSelect.addEventListener('change', (e) => {
     document.body.style.fontFamily = e.target.value;
 });
 
-colorSelect.addEventListener('input', (e) => {
-    document.documentElement.style.setProperty('--text-color', e.target.value);
+const displayTextColor = document.getElementById('displayTextColor');
+const boardTextColor = document.getElementById('boardTextColor');
+
+const displayTextSize = document.getElementById('displayTextSize');
+const boardFontSize = document.getElementById('boardFontSize');
+const displayTextBgColor = document.getElementById('displayTextBgColor');
+const boardBgColor = document.getElementById('boardBgColor');
+
+// Display Text Settings
+displayTextSize.addEventListener('input', (e) => {
+    displayText.style.fontSize = `${e.target.value}rem`;
+});
+
+displayTextBgColor.addEventListener('input', (e) => {
+    displayText.style.backgroundColor = e.target.value;
+});
+
+displayTextColor.addEventListener('input', (e) => {
+    displayText.style.color = e.target.value;
+});
+
+// Board Settings
+boardFontSize.addEventListener('input', (e) => {
+    const size = e.target.value;
+    // Update CSS variable or direct style for all char-btns
+    const btns = document.querySelectorAll('.char-btn');
+    btns.forEach(btn => {
+        btn.style.fontSize = `${size}vmin`;
+    });
+});
+
+boardBgColor.addEventListener('input', (e) => {
+    const color = e.target.value;
+    const btns = document.querySelectorAll('.char-btn');
+    btns.forEach(btn => {
+        btn.style.backgroundColor = color;
+    });
+});
+
+boardTextColor.addEventListener('input', (e) => {
+    const color = e.target.value;
+    const btns = document.querySelectorAll('.char-btn');
+    btns.forEach(btn => {
+        btn.style.color = color;
+    });
+});
+
+// Mode Selection Logic
+// Mode Selection Logic
+const modeItems = document.querySelectorAll('.mode-item');
+const pictureAreaContainer = document.getElementById('pictureAreaContainer');
+const pictureArea = document.getElementById('pictureArea');
+
+// Edit Mode Elements
+const editModeToggle = document.getElementById('editModeToggle');
+const editCardModal = document.getElementById('editCardModal');
+const closeEditCardBtn = document.getElementById('closeEditCardBtn');
+const cardLabelInput = document.getElementById('cardLabelInput');
+const iconGrid = document.getElementById('iconGrid');
+const saveCardBtn = document.getElementById('saveCardBtn');
+
+let isEditMode = false;
+let currentEditingIndex = -1;
+
+// Available Icons (Presets)
+const presetIcons = [
+    { id: 'none', icon: '', label: '文字のみ' }, // New "No Icon" option
+    { id: 'meal', icon: 'assets/icon_meal.png', label: '食事' },
+    { id: 'toilet', icon: 'assets/icon_toilet.png', label: 'トイレ' },
+    { id: 'bath', icon: 'assets/icon_bath.png', label: 'お風呂' },
+    { id: 'sleep', icon: 'assets/icon_sleep.png', label: '睡眠' },
+    { id: 'tv', icon: 'assets/icon_tv.png', label: 'テレビ' },
+    { id: 'health', icon: 'assets/icon_health.png', label: '体調' },
+    { id: 'suction', icon: 'assets/icon_suction.png', label: '吸引' },
+    { id: 'pain', icon: 'assets/icon_pain.png', label: '痛い' },
+    { id: 'board', icon: 'assets/icon_board.png', label: '文字盤' },
+    { id: 'call', icon: 'assets/icon_call.png', label: 'コール' }
+];
+
+// Grid Size Logic
+const gridSizeSelect = document.getElementById('gridSizeSelect');
+
+// Initial Cards (Default 3x2 = 6 cards)
+let currentCards = [
+    { ...presetIcons[1] }, // Meal
+    { ...presetIcons[2] }, // Toilet
+    { ...presetIcons[3] }, // Bath
+    { ...presetIcons[4] }, // Sleep
+    { ...presetIcons[5] }, // TV
+    { ...presetIcons[6] }  // Health
+];
+
+function updateGridSize(sizeStr) {
+    const [cols, rows] = sizeStr.split('x').map(Number);
+    const totalCards = cols * rows;
+
+    // Update Grid CSS
+    pictureArea.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    pictureArea.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+    // Resize currentCards array
+    if (currentCards.length < totalCards) {
+        // Add more cards (use presets or placeholders)
+        for (let i = currentCards.length; i < totalCards; i++) {
+            // Cycle through presets if we run out, skipping "none" if desired, or just looping
+            // Start from index 1 to skip "none" for auto-fill
+            const presetIndex = (i % (presetIcons.length - 1)) + 1;
+            currentCards.push({ ...presetIcons[presetIndex] });
+        }
+    } else if (currentCards.length > totalCards) {
+        // Trim array
+        currentCards = currentCards.slice(0, totalCards);
+    }
+
+    initPictureMode();
+}
+
+gridSizeSelect.addEventListener('change', (e) => {
+    updateGridSize(e.target.value);
+});
+
+function initPictureMode() {
+    pictureArea.innerHTML = '';
+
+    if (!currentCards || currentCards.length === 0) {
+        console.error("No cards to render!");
+        return;
+    }
+
+    currentCards.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'picture-card';
+        if (isEditMode) card.classList.add('editing');
+
+        // Check if icon exists and is not empty
+        const hasIcon = item.icon && item.icon !== '';
+
+        if (!hasIcon) {
+            card.classList.add('text-only');
+        }
+
+        card.innerHTML = `
+            <img src="${item.icon}" alt="${item.label}" onerror="this.style.display='none'; this.parentElement.classList.add('text-only');">
+            <span>${item.label}</span>
+        `;
+
+        addTouchListener(card, () => {
+            if (isEditMode) {
+                openEditModal(index);
+            } else {
+                speakChar(item.label);
+                displayText.value += item.label;
+                scrollToEnd();
+            }
+        });
+        pictureArea.appendChild(card);
+    });
+}
+
+// Initialize with default or selected value
+updateGridSize(gridSizeSelect.value);
+// Edit Mode Toggle
+editModeToggle.addEventListener('change', (e) => {
+    isEditMode = e.target.checked;
+    initPictureMode(); // Re-render to update visuals/behavior
+});
+
+// Edit Modal Logic
+function openEditModal(index) {
+    currentEditingIndex = index;
+    const card = currentCards[index];
+    cardLabelInput.value = card.label;
+
+    // Render Icon Grid
+    iconGrid.innerHTML = '';
+    presetIcons.forEach(icon => {
+        const option = document.createElement('div');
+        option.className = 'icon-option';
+        if (icon.icon === card.icon) option.classList.add('selected');
+
+        if (icon.id === 'none') {
+            option.innerHTML = `<div style="font-size: 0.8rem; font-weight: bold;">文字のみ</div>`;
+        } else {
+            option.innerHTML = `<img src="${icon.icon}" alt="${icon.label}">`;
+        }
+
+        addTouchListener(option, () => {
+            // Deselect others
+            document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
+            option.classList.add('selected');
+            // Update temp state if needed, but we'll read from DOM on save
+        });
+
+        // Store icon path on element for retrieval
+        option.dataset.iconPath = icon.icon;
+
+        iconGrid.appendChild(option);
+    });
+
+    editCardModal.style.display = 'flex';
+}
+
+saveCardBtn.addEventListener('click', () => { // Use click for buttons usually
+    if (currentEditingIndex === -1) return;
+
+    const newLabel = cardLabelInput.value;
+    const selectedOption = document.querySelector('.icon-option.selected');
+    const newIcon = selectedOption ? selectedOption.dataset.iconPath : currentCards[currentEditingIndex].icon;
+
+    currentCards[currentEditingIndex] = {
+        ...currentCards[currentEditingIndex],
+        label: newLabel,
+        icon: newIcon
+    };
+
+    editCardModal.style.display = 'none';
+    initPictureMode();
+});
+
+addTouchListener(closeEditCardBtn, () => {
+    editCardModal.style.display = 'none';
+});
+
+// Close modal on outside click
+window.addEventListener('pointerdown', (event) => {
+    if (event.target === editCardModal) {
+        editCardModal.style.display = 'none';
+    }
+});
+
+initPictureMode();
+
+
+
+modeItems.forEach(item => {
+    addTouchListener(item, () => {
+        // Remove active class from all
+        modeItems.forEach(i => i.classList.remove('active'));
+        // Add active class to clicked
+        item.classList.add('active');
+
+        const mode = item.dataset.mode;
+
+        // Hide all views first
+        boardArea.style.display = 'none';
+        pictureAreaContainer.style.display = 'none';
+
+        if (mode === 'kana') {
+            boardArea.style.display = 'grid';
+        } else {
+            // Picture mode
+            pictureAreaContainer.style.display = 'flex';
+            // Ensure grid is refreshed/visible
+            initPictureMode();
+        }
+    });
+});
+
+// Event Listeners for Controls
+addTouchListener(clearBtn, () => {
+    displayText.value = '';
+    updateSuggestions();
+});
+
+addTouchListener(backspaceBtn, () => {
+    displayText.value = displayText.value.slice(0, -1);
+    updateSuggestions();
+});
+
+addTouchListener(speakBtn, () => {
+    const text = displayText.value;
+    if (!text) return;
+
+    const uttr = new SpeechSynthesisUtterance(text);
+    uttr.lang = 'ja-JP';
+    speechSynthesis.speak(uttr);
 });
 
 // Initialize

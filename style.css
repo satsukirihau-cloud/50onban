@@ -33,8 +33,13 @@ html {
     width: 100vw;
     height: 100dvh;
     /* Use dynamic viewport height for mobile browsers */
-    padding: 8px;
-    /* Slightly reduced padding */
+
+    /* Safe Area Insets for iPhone X+ / iPad */
+    padding-top: env(safe-area-inset-top, 8px);
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+    padding-left: env(safe-area-inset-left, 8px);
+    padding-right: env(safe-area-inset-right, 8px);
+
     gap: 8px;
 }
 
@@ -138,21 +143,37 @@ html {
     color: white;
 }
 
-/* Board Area (Bottom - Main) */
-.board-area {
+/* Unified View Area */
+.view-area {
     flex: 1;
+    min-height: 0;
+    /* Crucial for nested flex scrolling */
+    overflow: hidden;
+    border-radius: 12px;
+    background: var(--board-bg);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    padding: 4px;
+}
+
+/* Board Grid (Kana) */
+.board-grid {
     display: grid;
     grid-template-columns: repeat(12, 1fr);
     grid-template-rows: repeat(5, 1fr);
     gap: 4px;
-    background: var(--board-bg);
-    padding: 4px;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    min-height: 0;
-    /* Crucial for nested flex/grid scrolling issues */
-    overflow: hidden;
-    /* Ensure no scrollbars appear */
+}
+
+/* Picture Grid */
+.picture-grid {
+    display: grid;
+    /* Default 3x2, overridden by JS */
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 8px;
+    padding: 8px;
+    height: 100%;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .char-btn {
@@ -258,4 +279,229 @@ html {
     #displayText {
         font-size: 3vmin;
     }
+}
+
+/* Mode Grid Styles */
+.mode-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+/* Picture Mode Container */
+.picture-mode-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.picture-card {
+    background: #fff;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: transform 0.1s;
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+    /* Prevent flex item overflow */
+    overflow: hidden;
+}
+
+.picture-card:active {
+    transform: scale(0.98);
+    background-color: #f0f9ff;
+}
+
+.picture-card img {
+    width: 60%;
+    height: 60%;
+    object-fit: contain;
+    margin-bottom: 8px;
+}
+
+.picture-card span {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+    word-break: break-all;
+    padding: 0 5px;
+}
+
+.picture-card.text-only span {
+    font-size: 2.5rem;
+    /* Larger font for text-only cards */
+}
+
+.picture-card.text-only img {
+    display: none;
+}
+
+.mode-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f7fafc;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.picture-controls {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 10px 10px;
+    gap: 10px;
+}
+
+.toggle-label {
+    font-weight: bold;
+    color: #555;
+}
+
+/* Toggle Switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+}
+
+input:checked+.slider {
+    background-color: var(--primary-color);
+}
+
+input:focus+.slider {
+    box-shadow: 0 0 1px var(--primary-color);
+}
+
+input:checked+.slider:before {
+    transform: translateX(22px);
+}
+
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+/* Edit Mode Visuals */
+.picture-card.editing {
+    border: 3px dashed var(--accent-color);
+    animation: shake 0.5s;
+}
+
+@keyframes shake {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    25% {
+        transform: rotate(1deg);
+    }
+
+    50% {
+        transform: rotate(0deg);
+    }
+
+    75% {
+        transform: rotate(-1deg);
+    }
+
+    100% {
+        transform: rotate(0deg);
+    }
+}
+
+/* Icon Grid in Modal */
+.icon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.icon-option {
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: 5px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.icon-option img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
+
+.icon-option.selected {
+    border-color: var(--primary-color);
+    background-color: #ebf8ff;
+}
+
+.mode-item img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+    margin-bottom: 5px;
+}
+
+.mode-item span {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #555;
+}
+
+.mode-item.active {
+    border-color: var(--primary-color);
+    background-color: #ebf8ff;
+}
+
+.mode-item:active {
+    transform: scale(0.95);
 }
