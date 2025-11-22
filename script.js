@@ -232,60 +232,24 @@ function addTouchListener(element, handler) {
     });
 }
 
-// --- Flick Logic ---
+// --- Flick/Tap Logic ---
 
 function addFlickListener(element, item) {
-    let startX, startY;
-    let isFlicking = false;
-    let activeDirection = 'center';
+    // Changed to Tap-Select interaction
+    addTouchListener(element, (e) => {
+        // Show Popup
+        // Calculate position to keep it on screen if possible, or just center on click
+        // Using clientX/Y from event
+        let x = e.clientX;
+        let y = e.clientY;
 
-    element.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        startX = e.clientX;
-        startY = e.clientY;
-        isFlicking = true;
-        activeDirection = 'center';
-        showFlickPopup(e.clientX, e.clientY, item);
-        element.setPointerCapture(e.pointerId);
-    });
-
-    element.addEventListener('pointermove', (e) => {
-        if (!isFlicking) return;
-        const deltaX = e.clientX - startX;
-        const deltaY = e.clientY - startY;
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        const threshold = 30;
-
-        if (distance < threshold) {
-            activeDirection = 'center';
-        } else {
-            const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
-            if (angle >= -45 && angle < 45) activeDirection = 'right';
-            else if (angle >= 45 && angle < 135) activeDirection = 'bottom';
-            else if (angle >= -135 && angle < -45) activeDirection = 'top';
-            else activeDirection = 'left';
+        // If it's a mouse click (no clientX/Y in some cases?), fallback
+        if (!x && e.touches && e.touches[0]) {
+            x = e.touches[0].clientX;
+            y = e.touches[0].clientY;
         }
-        updateFlickPopupState(activeDirection);
-    });
 
-    element.addEventListener('pointerup', (e) => {
-        if (!isFlicking) return;
-        isFlicking = false;
-        element.releasePointerCapture(e.pointerId);
-        hideFlickPopup();
-
-        let inputChar = item.char;
-        if (activeDirection === 'left') inputChar = item.sub[0];
-        else if (activeDirection === 'top') inputChar = item.sub[1];
-        else if (activeDirection === 'right') inputChar = item.sub[2];
-        else if (activeDirection === 'bottom') inputChar = item.sub[3];
-
-        if (inputChar) handleInput(inputChar);
-    });
-
-    element.addEventListener('pointercancel', () => {
-        isFlicking = false;
-        hideFlickPopup();
+        showFlickPopup(x, y, item);
     });
 }
 
@@ -293,15 +257,34 @@ function showFlickPopup(x, y, item) {
     if (!flickPopup) return;
     flickPopup.style.display = 'grid';
     flickPopup.style.left = `${x}px`;
-    flickPopup.style.top = `${y - 50}px`;
+    flickPopup.style.top = `${y}px`; // Center on tap
 
-    flickPopup.querySelector('.center').textContent = item.char;
-    flickPopup.querySelector('.left').textContent = item.sub[0] || '';
-    flickPopup.querySelector('.top').textContent = item.sub[1] || '';
-    flickPopup.querySelector('.right').textContent = item.sub[2] || '';
-    flickPopup.querySelector('.bottom').textContent = item.sub[3] || '';
+    // Populate items
+    const map = {
+        center: item.char,
+        left: item.sub[0] || '',
+        top: item.sub[1] || '',
+        right: item.sub[2] || '',
+        bottom: item.sub[3] || ''
+    };
 
-    updateFlickPopupState('center');
+    ['center', 'left', 'top', 'right', 'bottom'].forEach(dir => {
+        const el = flickPopup.querySelector(`.${dir}`);
+        if (el) {
+            el.textContent = map[dir];
+            // Clone to remove old listeners
+            const newEl = el.cloneNode(true);
+            el.parentNode.replaceChild(newEl, el);
+
+            if (map[dir]) {
+                addTouchListener(newEl, (e) => {
+                    e.stopPropagation(); // Prevent closing immediately
+                    handleInput(map[dir]);
+                    hideFlickPopup();
+                });
+            }
+        }
+    });
 }
 
 function hideFlickPopup() {
@@ -309,10 +292,7 @@ function hideFlickPopup() {
 }
 
 function updateFlickPopupState(direction) {
-    if (!flickPopup) return;
-    flickPopup.querySelectorAll('.flick-item').forEach(el => el.classList.remove('active'));
-    const target = flickPopup.querySelector(`.${direction}`);
-    if (target && target.textContent) target.classList.add('active');
+    // Not used in Tap-Select
 }
 
 // --- Settings & Controls ---
@@ -332,8 +312,15 @@ const fullScreenBtn = document.getElementById('fullScreenBtn');
 addTouchListener(settingsBtn, () => settingsModal.style.display = 'flex');
 addTouchListener(closeSettingsBtn, () => settingsModal.style.display = 'none');
 
+// Close popup on outside click
 window.addEventListener('pointerdown', (event) => {
+    if (flickPopup && flickPopup.style.display !== 'none') {
+        if (!flickPopup.contains(event.target) && !event.target.closest('.flick-key')) {
+            hideFlickPopup();
+        }
+    }
     if (event.target === settingsModal) settingsModal.style.display = 'none';
+    if (event.target === editCardModal) editCardModal.style.display = 'none';
 });
 
 fontSelect.addEventListener('change', (e) => document.body.style.fontFamily = e.target.value);
