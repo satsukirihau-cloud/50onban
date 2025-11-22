@@ -3,9 +3,11 @@ const displayText = document.getElementById('displayText');
 const speakBtn = document.getElementById('speakBtn');
 const clearBtn = document.getElementById('clearBtn');
 const backspaceBtn = document.getElementById('backspaceBtn');
+const suggestionArea = document.getElementById('suggestionArea');
 
-// Data structure for the board
-// Columns from Left to Right
+// --- Data Structures ---
+
+// 50-on Columns
 const columns = [
     ['あ', 'い', 'う', 'え', 'お'],
     ['か', 'き', 'く', 'け', 'こ'],
@@ -14,15 +16,29 @@ const columns = [
     ['な', 'に', 'ぬ', 'ね', 'の'],
     ['は', 'ひ', 'ふ', 'へ', 'ほ'],
     ['ま', 'み', 'む', 'め', 'も'],
-    ['や', '「', 'ゆ', '」', 'よ'], // Adjusted Ya-column
+    ['や', '「', 'ゆ', '」', 'よ'],
     ['ら', 'り', 'る', 'れ', 'ろ'],
-    ['わ', 'を', 'ん', 'ー', '、'], // Adjusted Wa-column
-    ['゛', '゜', '？', '！', '。']  // Extras
+    ['わ', 'を', 'ん', 'ー', '、'],
+    ['゛', '゜', '？', '！', '。']
 ];
 
-const suggestionArea = document.getElementById('suggestionArea');
+// Flick Columns (10-key)
+const flickColumns = [
+    { char: 'あ', sub: ['い', 'う', 'え', 'お'] },
+    { char: 'か', sub: ['き', 'く', 'け', 'こ'] },
+    { char: 'さ', sub: ['し', 'す', 'せ', 'そ'] },
+    { char: 'た', sub: ['ち', 'つ', 'て', 'と'] },
+    { char: 'な', sub: ['に', 'ぬ', 'ね', 'の'] },
+    { char: 'は', sub: ['ひ', 'ふ', 'へ', 'ほ'] },
+    { char: 'ま', sub: ['み', 'む', 'め', 'も'] },
+    { char: 'や', sub: ['「', 'ゆ', '」', 'よ'] },
+    { char: 'ら', sub: ['り', 'る', 'れ', 'ろ'] },
+    { char: 'わ', sub: ['を', 'ん', 'ー', '、'] },
+    { char: '゛', sub: ['゜', '？', '！', '。'] },
+    { char: '削除', action: 'backspace' }
+];
 
-// Vocabulary for predictive text (~100 care/daily words)
+// Vocabulary
 const vocabulary = [
     'ありがとう', 'ごめんなさい', 'はい', 'いいえ', 'おねがいします',
     'トイレ', 'おみず', 'おちゃ', 'ごはん', 'おなかすいた',
@@ -46,38 +62,86 @@ const vocabulary = [
     'まど', 'ドア', 'カーテン', 'カレンダー', 'とけい'
 ];
 
+// --- State ---
+let currentInputMode = '50on'; // '50on' or 'flick'
+let isEditMode = false;
+let currentEditingIndex = -1;
+
+// --- Elements ---
+const inputModeSelect = document.getElementById('inputModeSelect');
+const flickPopup = document.getElementById('flickPopup');
+
+// --- Initialization & Mode Switching ---
+
 function initBoard() {
-    // Clear existing
     boardArea.innerHTML = '';
-    boardArea.style.display = 'grid'; // Ensure it's visible
+    boardArea.style.display = 'grid'; // Ensure visible
 
-    // Set grid columns based on data length
-    boardArea.style.gridTemplateColumns = `repeat(${columns.length}, 1fr)`;
-
-    columns.forEach((col, colIndex) => {
-        col.forEach((char, rowIndex) => {
-            const btn = document.createElement('div');
-            btn.className = 'char-btn';
-            btn.textContent = char;
-
-            // Use the helper for consistent touch handling
-            addTouchListener(btn, () => {
-                handleInput(char);
-            });
-
-            boardArea.appendChild(btn);
-        });
-    });
-
-    // Apply column flow
-    boardArea.style.gridAutoFlow = 'column';
+    if (currentInputMode === 'flick') {
+        initFlickBoard();
+    } else {
+        init50onBoard();
+    }
     updateSuggestions();
 }
 
-function handleInput(char) {
-    // Sound feedback
-    speakChar(char);
+function init50onBoard() {
+    boardArea.className = 'view-area board-grid';
+    boardArea.style.gridTemplateColumns = `repeat(${columns.length}, 1fr)`;
+    boardArea.style.gridTemplateRows = 'repeat(5, 1fr)';
+    boardArea.style.gridAutoFlow = 'column';
 
+    columns.forEach((col) => {
+        col.forEach((char) => {
+            const btn = document.createElement('div');
+            btn.className = 'char-btn';
+            btn.textContent = char;
+            addTouchListener(btn, () => handleInput(char));
+            boardArea.appendChild(btn);
+        });
+    });
+}
+
+function initFlickBoard() {
+    boardArea.className = 'view-area board-grid flick-mode';
+    boardArea.style.gridTemplateColumns = 'repeat(3, 1fr)';
+    boardArea.style.gridTemplateRows = 'repeat(4, 1fr)';
+    boardArea.style.gridAutoFlow = 'row';
+
+    flickColumns.forEach((item) => {
+        const btn = document.createElement('div');
+        btn.className = 'flick-key';
+
+        if (item.action === 'backspace') {
+            btn.innerHTML = `<span>⌫</span>`;
+            btn.style.backgroundColor = '#ed8936';
+            btn.style.color = 'white';
+            addTouchListener(btn, () => {
+                displayText.value = displayText.value.slice(0, -1);
+                updateSuggestions();
+            });
+        } else {
+            btn.innerHTML = `
+                <span>${item.char}</span>
+                <div class="sub-chars">${item.sub[1] || ''} ${item.sub[2] || ''} ${item.sub[3] || ''}</div>
+            `;
+            addFlickListener(btn, item);
+        }
+        boardArea.appendChild(btn);
+    });
+}
+
+if (inputModeSelect) {
+    inputModeSelect.addEventListener('change', (e) => {
+        currentInputMode = e.target.value;
+        initBoard();
+    });
+}
+
+// --- Input Handling ---
+
+function handleInput(char) {
+    speakChar(char);
     if (char === '゛' || char === '゜') {
         addDakuten(char);
     } else {
@@ -88,11 +152,10 @@ function handleInput(char) {
 }
 
 function speakChar(text) {
-    // Cancel previous speech to avoid queue buildup
     speechSynthesis.cancel();
     const uttr = new SpeechSynthesisUtterance(text);
     uttr.lang = 'ja-JP';
-    uttr.rate = 1.2; // Slightly faster for feedback
+    uttr.rate = 1.2;
     speechSynthesis.speak(uttr);
 }
 
@@ -126,53 +189,21 @@ function addDakuten(type) {
 function updateSuggestions() {
     const currentText = displayText.value;
     suggestionArea.innerHTML = '';
-
     if (!currentText) return;
 
-    // Simple matching: words that start with the last few characters
-    // For simplicity, let's match based on the last 1-3 characters entered
-    // But typically, prediction works on the whole current "sentence" or just the last word.
-    // Since there are no spaces, we'll try to match the *end* of the current text with the *start* of vocabulary words?
-    // Or just simple "contains" or "starts with" if the text is short?
-
-    // Let's assume the user clears text often or we match against the *last entered sequence*.
-    // A common simple strategy for these boards is: match words that START with the last character(s).
-
-    const lastChar = currentText.slice(-1);
-    if (!lastChar) return;
-
-    // Filter words that start with the last character
-    // (Improvement: match last 2 chars if possible, etc.)
-    const matches = vocabulary.filter(word => word.startsWith(lastChar));
-
-    // Also, if the text *is* a prefix of a word (e.g. "あり" -> "ありがとう")
-    // We should check if the *entire* current text (or suffix of it) matches.
-    // Let's try to find words that start with the suffix of the current text.
-    // We'll check suffixes of length 1 to 4.
-
     let suggestions = [];
-
     for (let len = Math.min(currentText.length, 5); len > 0; len--) {
         const suffix = currentText.slice(-len);
         const found = vocabulary.filter(word => word.startsWith(suffix) && word !== suffix);
         suggestions = [...suggestions, ...found];
     }
-
-    // Deduplicate
     suggestions = [...new Set(suggestions)];
 
-    // Limit to top 10
     suggestions.slice(0, 10).forEach(word => {
         const chip = document.createElement('div');
         chip.className = 'suggestion-chip';
         chip.textContent = word;
         addTouchListener(chip, () => {
-            // Append the rest of the word
-            // We need to know which part matched.
-            // Simplified: just replace the matching suffix or append?
-            // Usually, we replace the typed part with the full word.
-
-            // Find the longest matching suffix again to replace correctly
             let matchLen = 0;
             for (let len = Math.min(currentText.length, word.length); len > 0; len--) {
                 if (word.startsWith(currentText.slice(-len))) {
@@ -180,10 +211,9 @@ function updateSuggestions() {
                     break;
                 }
             }
-
             const newText = currentText.slice(0, -matchLen) + word;
             displayText.value = newText;
-            speakChar(word); // Speak the full word
+            speakChar(word);
             updateSuggestions();
             scrollToEnd();
         });
@@ -195,142 +225,197 @@ function scrollToEnd() {
     displayText.scrollTop = displayText.scrollHeight;
 }
 
-// Helper to add touch-friendly listeners
 function addTouchListener(element, handler) {
-    // Use pointerdown for immediate response on modern devices
-    // Prevent default to stop potential double-firing or scrolling issues on buttons
     element.addEventListener('pointerdown', (e) => {
-        e.preventDefault(); // Prevent mouse emulation and scrolling (since we are no-scroll)
+        e.preventDefault();
         handler(e);
     });
 }
 
-// Settings Logic
+// --- Flick Logic ---
+
+function addFlickListener(element, item) {
+    let startX, startY;
+    let isFlicking = false;
+    let activeDirection = 'center';
+
+    element.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        startX = e.clientX;
+        startY = e.clientY;
+        isFlicking = true;
+        activeDirection = 'center';
+        showFlickPopup(e.clientX, e.clientY, item);
+        element.setPointerCapture(e.pointerId);
+    });
+
+    element.addEventListener('pointermove', (e) => {
+        if (!isFlicking) return;
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const threshold = 30;
+
+        if (distance < threshold) {
+            activeDirection = 'center';
+        } else {
+            const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+            if (angle >= -45 && angle < 45) activeDirection = 'right';
+            else if (angle >= 45 && angle < 135) activeDirection = 'bottom';
+            else if (angle >= -135 && angle < -45) activeDirection = 'top';
+            else activeDirection = 'left';
+        }
+        updateFlickPopupState(activeDirection);
+    });
+
+    element.addEventListener('pointerup', (e) => {
+        if (!isFlicking) return;
+        isFlicking = false;
+        element.releasePointerCapture(e.pointerId);
+        hideFlickPopup();
+
+        let inputChar = item.char;
+        if (activeDirection === 'left') inputChar = item.sub[0];
+        else if (activeDirection === 'top') inputChar = item.sub[1];
+        else if (activeDirection === 'right') inputChar = item.sub[2];
+        else if (activeDirection === 'bottom') inputChar = item.sub[3];
+
+        if (inputChar) handleInput(inputChar);
+    });
+
+    element.addEventListener('pointercancel', () => {
+        isFlicking = false;
+        hideFlickPopup();
+    });
+}
+
+function showFlickPopup(x, y, item) {
+    if (!flickPopup) return;
+    flickPopup.style.display = 'grid';
+    flickPopup.style.left = `${x}px`;
+    flickPopup.style.top = `${y - 50}px`;
+
+    flickPopup.querySelector('.center').textContent = item.char;
+    flickPopup.querySelector('.left').textContent = item.sub[0] || '';
+    flickPopup.querySelector('.top').textContent = item.sub[1] || '';
+    flickPopup.querySelector('.right').textContent = item.sub[2] || '';
+    flickPopup.querySelector('.bottom').textContent = item.sub[3] || '';
+
+    updateFlickPopupState('center');
+}
+
+function hideFlickPopup() {
+    if (flickPopup) flickPopup.style.display = 'none';
+}
+
+function updateFlickPopupState(direction) {
+    if (!flickPopup) return;
+    flickPopup.querySelectorAll('.flick-item').forEach(el => el.classList.remove('active'));
+    const target = flickPopup.querySelector(`.${direction}`);
+    if (target && target.textContent) target.classList.add('active');
+}
+
+// --- Settings & Controls ---
+
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsModal = document.getElementById('settingsModal');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const fontSelect = document.getElementById('fontSelect');
-const colorSelect = document.getElementById('colorSelect');
-
-// Use click for Settings to avoid accidental triggers, or pointerdown if requested.
-// User said "Settings button cannot be changed on iPad", so let's try pointerdown to ensure it catches.
-addTouchListener(settingsBtn, () => {
-    settingsModal.style.display = 'flex';
-});
-
-addTouchListener(closeSettingsBtn, () => {
-    settingsModal.style.display = 'none';
-});
-
-// Modal background click
-window.addEventListener('pointerdown', (event) => {
-    if (event.target === settingsModal) {
-        settingsModal.style.display = 'none';
-    }
-});
-
-fontSelect.addEventListener('change', (e) => {
-    document.body.style.fontFamily = e.target.value;
-});
-
-const displayTextColor = document.getElementById('displayTextColor');
-const boardTextColor = document.getElementById('boardTextColor');
-
 const displayTextSize = document.getElementById('displayTextSize');
 const boardFontSize = document.getElementById('boardFontSize');
 const displayTextBgColor = document.getElementById('displayTextBgColor');
 const boardBgColor = document.getElementById('boardBgColor');
+const displayTextColor = document.getElementById('displayTextColor');
+const boardTextColor = document.getElementById('boardTextColor');
+const fullScreenBtn = document.getElementById('fullScreenBtn');
 
-// Display Text Settings
-displayTextSize.addEventListener('input', (e) => {
-    displayText.style.fontSize = `${e.target.value}rem`;
+addTouchListener(settingsBtn, () => settingsModal.style.display = 'flex');
+addTouchListener(closeSettingsBtn, () => settingsModal.style.display = 'none');
+
+window.addEventListener('pointerdown', (event) => {
+    if (event.target === settingsModal) settingsModal.style.display = 'none';
 });
 
-displayTextBgColor.addEventListener('input', (e) => {
-    displayText.style.backgroundColor = e.target.value;
-});
+fontSelect.addEventListener('change', (e) => document.body.style.fontFamily = e.target.value);
 
-displayTextColor.addEventListener('input', (e) => {
-    displayText.style.color = e.target.value;
-});
+displayTextSize.addEventListener('input', (e) => displayText.style.fontSize = `${e.target.value}rem`);
+displayTextBgColor.addEventListener('input', (e) => displayText.style.backgroundColor = e.target.value);
+displayTextColor.addEventListener('input', (e) => displayText.style.color = e.target.value);
 
-// Board Settings
 boardFontSize.addEventListener('input', (e) => {
     const size = e.target.value;
-    // Update CSS variable or direct style for all char-btns
-    const btns = document.querySelectorAll('.char-btn');
-    btns.forEach(btn => {
-        btn.style.fontSize = `${size}vmin`;
-    });
+    document.querySelectorAll('.char-btn').forEach(btn => btn.style.fontSize = `${size}vmin`);
 });
 
 boardBgColor.addEventListener('input', (e) => {
     const color = e.target.value;
-    const btns = document.querySelectorAll('.char-btn');
-    btns.forEach(btn => {
-        btn.style.backgroundColor = color;
-    });
+    document.querySelectorAll('.char-btn').forEach(btn => btn.style.backgroundColor = color);
 });
 
 boardTextColor.addEventListener('input', (e) => {
     const color = e.target.value;
-    const btns = document.querySelectorAll('.char-btn');
-    btns.forEach(btn => {
-        btn.style.color = color;
-    });
+    document.querySelectorAll('.char-btn').forEach(btn => btn.style.color = color);
 });
 
-// Full Screen Logic
-const fullScreenBtn = document.getElementById('fullScreenBtn');
-
-function toggleFullScreen() {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-            console.log(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-            alert('このブラウザでは全画面表示がサポートされていないか、制限されています。');
-        });
-    } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
+// Full Screen
+if (fullScreenBtn) {
+    addTouchListener(fullScreenBtn, () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.log(`Error: ${err.message}`);
+                alert('全画面表示がサポートされていないか、制限されています。');
+            });
+        } else {
+            if (document.exitFullscreen) document.exitFullscreen();
         }
-    }
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+        if (document.fullscreenElement) {
+            fullScreenBtn.textContent = '解除';
+            fullScreenBtn.style.backgroundColor = '#ed8936';
+        } else {
+            fullScreenBtn.textContent = '切り替え';
+            fullScreenBtn.style.backgroundColor = 'var(--primary-color)';
+        }
+    });
 }
 
-addTouchListener(fullScreenBtn, () => {
-    toggleFullScreen();
+// Controls
+addTouchListener(clearBtn, () => {
+    displayText.value = '';
+    updateSuggestions();
 });
 
-// Update button text based on state (optional but good for debugging/UX)
-document.addEventListener('fullscreenchange', () => {
-    if (document.fullscreenElement) {
-        fullScreenBtn.textContent = '解除';
-        fullScreenBtn.style.backgroundColor = '#ed8936'; // Orange for exit
-    } else {
-        fullScreenBtn.textContent = '切り替え';
-        fullScreenBtn.style.backgroundColor = 'var(--primary-color)'; // Blue for enter
+addTouchListener(backspaceBtn, () => {
+    displayText.value = displayText.value.slice(0, -1);
+    updateSuggestions();
+});
+
+addTouchListener(speakBtn, () => {
+    const text = displayText.value;
+    if (text) {
+        const uttr = new SpeechSynthesisUtterance(text);
+        uttr.lang = 'ja-JP';
+        speechSynthesis.speak(uttr);
     }
 });
 
-// Mode Selection Logic
-// Mode Selection Logic
+// --- Picture Mode ---
+
 const modeItems = document.querySelectorAll('.mode-item');
 const pictureAreaContainer = document.getElementById('pictureAreaContainer');
 const pictureArea = document.getElementById('pictureArea');
-
-// Edit Mode Elements
 const editModeToggle = document.getElementById('editModeToggle');
 const editCardModal = document.getElementById('editCardModal');
 const closeEditCardBtn = document.getElementById('closeEditCardBtn');
 const cardLabelInput = document.getElementById('cardLabelInput');
 const iconGrid = document.getElementById('iconGrid');
 const saveCardBtn = document.getElementById('saveCardBtn');
+const gridSizeSelect = document.getElementById('gridSizeSelect');
 
-let isEditMode = false;
-let currentEditingIndex = -1;
-
-// Available Icons (Presets)
 const presetIcons = [
-    { id: 'none', icon: '', label: '文字のみ' }, // New "No Icon" option
+    { id: 'none', icon: '', label: '文字のみ' },
     { id: 'meal', icon: 'assets/icon_meal.png', label: '食事' },
     { id: 'toilet', icon: 'assets/icon_toilet.png', label: 'トイレ' },
     { id: 'bath', icon: 'assets/icon_bath.png', label: 'お風呂' },
@@ -343,67 +428,45 @@ const presetIcons = [
     { id: 'call', icon: 'assets/icon_call.png', label: 'コール' }
 ];
 
-// Grid Size Logic
-const gridSizeSelect = document.getElementById('gridSizeSelect');
-
-// Initial Cards (Default 3x2 = 6 cards)
 let currentCards = [
-    { ...presetIcons[1] }, // Meal
-    { ...presetIcons[2] }, // Toilet
-    { ...presetIcons[3] }, // Bath
-    { ...presetIcons[4] }, // Sleep
-    { ...presetIcons[5] }, // TV
-    { ...presetIcons[6] }  // Health
+    { ...presetIcons[1] },
+    { ...presetIcons[2] },
+    { ...presetIcons[3] },
+    { ...presetIcons[4] },
+    { ...presetIcons[5] },
+    { ...presetIcons[6] }
 ];
 
 function updateGridSize(sizeStr) {
     const [cols, rows] = sizeStr.split('x').map(Number);
     const totalCards = cols * rows;
-
-    // Update Grid CSS
     pictureArea.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     pictureArea.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
 
-    // Resize currentCards array
     if (currentCards.length < totalCards) {
-        // Add more cards (use presets or placeholders)
         for (let i = currentCards.length; i < totalCards; i++) {
-            // Cycle through presets if we run out, skipping "none" if desired, or just looping
-            // Start from index 1 to skip "none" for auto-fill
             const presetIndex = (i % (presetIcons.length - 1)) + 1;
             currentCards.push({ ...presetIcons[presetIndex] });
         }
     } else if (currentCards.length > totalCards) {
-        // Trim array
         currentCards = currentCards.slice(0, totalCards);
     }
-
     initPictureMode();
 }
 
-gridSizeSelect.addEventListener('change', (e) => {
-    updateGridSize(e.target.value);
-});
+if (gridSizeSelect) {
+    gridSizeSelect.addEventListener('change', (e) => updateGridSize(e.target.value));
+}
 
 function initPictureMode() {
     pictureArea.innerHTML = '';
-
-    if (!currentCards || currentCards.length === 0) {
-        console.error("No cards to render!");
-        return;
-    }
-
     currentCards.forEach((item, index) => {
         const card = document.createElement('div');
         card.className = 'picture-card';
         if (isEditMode) card.classList.add('editing');
 
-        // Check if icon exists and is not empty
         const hasIcon = item.icon && item.icon !== '';
-
-        if (!hasIcon) {
-            card.classList.add('text-only');
-        }
+        if (!hasIcon) card.classList.add('text-only');
 
         card.innerHTML = `
             <img src="${item.icon}" alt="${item.label}" onerror="this.style.display='none'; this.parentElement.classList.add('text-only');">
@@ -423,22 +486,19 @@ function initPictureMode() {
     });
 }
 
-// Initialize with default or selected value
-updateGridSize(gridSizeSelect.value);
-// Edit Mode Toggle
-editModeToggle.addEventListener('change', (e) => {
-    isEditMode = e.target.checked;
-    initPictureMode(); // Re-render to update visuals/behavior
-});
+if (editModeToggle) {
+    editModeToggle.addEventListener('change', (e) => {
+        isEditMode = e.target.checked;
+        initPictureMode();
+    });
+}
 
-// Edit Modal Logic
 function openEditModal(index) {
     currentEditingIndex = index;
     const card = currentCards[index];
     cardLabelInput.value = card.label;
-
-    // Render Icon Grid
     iconGrid.innerHTML = '';
+
     presetIcons.forEach(icon => {
         const option = document.createElement('div');
         option.className = 'icon-option';
@@ -451,96 +511,54 @@ function openEditModal(index) {
         }
 
         addTouchListener(option, () => {
-            // Deselect others
             document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
             option.classList.add('selected');
-            // Update temp state if needed, but we'll read from DOM on save
         });
-
-        // Store icon path on element for retrieval
         option.dataset.iconPath = icon.icon;
-
         iconGrid.appendChild(option);
     });
-
     editCardModal.style.display = 'flex';
 }
 
-saveCardBtn.addEventListener('click', () => { // Use click for buttons usually
-    if (currentEditingIndex === -1) return;
+if (saveCardBtn) {
+    saveCardBtn.addEventListener('click', () => {
+        if (currentEditingIndex === -1) return;
+        const newLabel = cardLabelInput.value;
+        const selectedOption = document.querySelector('.icon-option.selected');
+        const newIcon = selectedOption ? selectedOption.dataset.iconPath : currentCards[currentEditingIndex].icon;
 
-    const newLabel = cardLabelInput.value;
-    const selectedOption = document.querySelector('.icon-option.selected');
-    const newIcon = selectedOption ? selectedOption.dataset.iconPath : currentCards[currentEditingIndex].icon;
-
-    currentCards[currentEditingIndex] = {
-        ...currentCards[currentEditingIndex],
-        label: newLabel,
-        icon: newIcon
-    };
-
-    editCardModal.style.display = 'none';
-    initPictureMode();
-});
-
-addTouchListener(closeEditCardBtn, () => {
-    editCardModal.style.display = 'none';
-});
-
-// Close modal on outside click
-window.addEventListener('pointerdown', (event) => {
-    if (event.target === editCardModal) {
+        currentCards[currentEditingIndex] = {
+            ...currentCards[currentEditingIndex],
+            label: newLabel,
+            icon: newIcon
+        };
         editCardModal.style.display = 'none';
-    }
+        initPictureMode();
+    });
+}
+
+if (closeEditCardBtn) addTouchListener(closeEditCardBtn, () => editCardModal.style.display = 'none');
+window.addEventListener('pointerdown', (event) => {
+    if (event.target === editCardModal) editCardModal.style.display = 'none';
 });
-
-initPictureMode();
-
-
 
 modeItems.forEach(item => {
     addTouchListener(item, () => {
-        // Remove active class from all
         modeItems.forEach(i => i.classList.remove('active'));
-        // Add active class to clicked
         item.classList.add('active');
-
         const mode = item.dataset.mode;
-
-        // Hide all views first
         boardArea.style.display = 'none';
         pictureAreaContainer.style.display = 'none';
 
         if (mode === 'kana') {
             boardArea.style.display = 'grid';
         } else {
-            // Picture mode
             pictureAreaContainer.style.display = 'flex';
-            // Ensure grid is refreshed/visible
             initPictureMode();
         }
     });
 });
 
-// Event Listeners for Controls
-addTouchListener(clearBtn, () => {
-    displayText.value = '';
-    updateSuggestions();
-});
-
-addTouchListener(backspaceBtn, () => {
-    displayText.value = displayText.value.slice(0, -1);
-    updateSuggestions();
-});
-
-addTouchListener(speakBtn, () => {
-    const text = displayText.value;
-    if (!text) return;
-
-    const uttr = new SpeechSynthesisUtterance(text);
-    uttr.lang = 'ja-JP';
-    speechSynthesis.speak(uttr);
-});
-
-// Initialize
+// --- Start ---
 initBoard();
+if (gridSizeSelect) updateGridSize(gridSizeSelect.value);

@@ -576,3 +576,93 @@ input:checked+.slider:before {
 .mode-item:active {
     transform: scale(0.95);
 }
+
+/* Flick Popup Styles */
+.flick-popup {
+    position: fixed;
+    width: 150px;
+    height: 150px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    z-index: 2000;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    pointer-events: none;
+    /* Allow touch to pass through for tracking? No, we track on document/container */
+    transform: translate(-50%, -50%);
+    /* Center on touch point */
+}
+
+.flick-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    border-radius: 50%;
+}
+
+.flick-item.center {
+    grid-column: 2;
+    grid-row: 2;
+    background: #e2e8f0;
+}
+
+.flick-item.top {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.flick-item.left {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.flick-item.right {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+.flick-item.bottom {
+    grid-column: 2;
+    grid-row: 3;
+}
+
+.flick-item.active {
+    background: var(--primary-color);
+    color: white;
+    transform: scale(1.2);
+}
+
+/* 10-key Grid Styles */
+.board-grid.flick-mode {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.flick-key {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--btn-bg);
+    border-radius: 12px;
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--text-color);
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    user-select: none;
+    touch-action: none;
+    /* Prevent scrolling while flicking */
+}
+
+.flick-key .sub-chars {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 4px;
+}
