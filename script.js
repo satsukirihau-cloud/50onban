@@ -488,7 +488,17 @@ const unlockSpeechBtn = document.getElementById('unlockSpeech');
 if (unlockSpeechBtn) {
     unlockSpeechBtn.addEventListener('click', () => {
         unlockSpeechForIOS();
-        alert('音声が有効になりました。この後は普通に話すボタンで再生できます。');
+        // Visual feedback instead of alert
+        unlockSpeechBtn.textContent = '有効化されました！';
+        unlockSpeechBtn.style.backgroundColor = '#48bb78'; // Green
+        unlockSpeechBtn.disabled = true;
+
+        // Optional: Reset after a few seconds if you want to allow retrying
+        setTimeout(() => {
+            unlockSpeechBtn.textContent = '音声出力を有効にする (iOS用)';
+            unlockSpeechBtn.style.backgroundColor = '#ed8936';
+            unlockSpeechBtn.disabled = false;
+        }, 3000);
     });
 }
 
