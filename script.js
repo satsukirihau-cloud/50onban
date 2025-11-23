@@ -304,7 +304,7 @@ const displayTextColor = document.getElementById('displayTextColor');
 const boardTextColor = document.getElementById('boardTextColor');
 const fullScreenBtn = document.getElementById('fullScreenBtn');
 
-addTouchListener(settingsBtn, () => settingsModal.style.display = 'flex');
+// addTouchListener(settingsBtn, () => settingsModal.style.display = 'flex'); // Moved to voice loading logic
 addTouchListener(closeSettingsBtn, () => settingsModal.style.display = 'none');
 
 // Close popup on outside click
@@ -378,19 +378,26 @@ addTouchListener(backspaceBtn, () => {
 
 let currentVoice = null;
 const voiceSelect = document.getElementById('voiceSelect');
+let voicesLoaded = false;
 
 function loadVoices() {
+    // If we already have a valid selection and voices are loaded, we might not need to do much,
+    // but on iOS, getVoices() can return empty array initially.
     const voices = speechSynthesis.getVoices();
+
+    // Filter for Japanese voices
     const jaVoices = voices.filter(voice => voice.lang.includes('ja') || voice.lang.includes('JP'));
 
-    voiceSelect.innerHTML = '';
-
     if (jaVoices.length === 0) {
-        const option = document.createElement('option');
-        option.textContent = '日本語音声が見つかりません';
-        voiceSelect.appendChild(option);
+        // Only show "Loading..." if we really have nothing
+        if (voiceSelect.options.length <= 1) {
+            voiceSelect.innerHTML = '<option value="">読み込み中...</option>';
+        }
         return;
     }
+
+    voicesLoaded = true;
+    voiceSelect.innerHTML = '';
 
     jaVoices.forEach(voice => {
         const option = document.createElement('option');
@@ -400,6 +407,7 @@ function loadVoices() {
         if (voice.name.includes('Siri')) label = `Siri (${voice.name})`;
         if (voice.name.includes('Kyoko')) label = 'Kyoko (女性)';
         if (voice.name.includes('Otoya')) label = 'Otoya (男性)';
+        if (voice.name.includes('Google')) label = `Google (${voice.name})`;
 
         option.textContent = label;
         voiceSelect.appendChild(option);
@@ -407,19 +415,66 @@ function loadVoices() {
 
     // Restore selection or default
     const savedVoice = localStorage.getItem('selectedVoice');
+    let targetVoice = null;
+
     if (savedVoice && jaVoices.some(v => v.name === savedVoice)) {
-        voiceSelect.value = savedVoice;
-        currentVoice = jaVoices.find(v => v.name === savedVoice);
+        targetVoice = jaVoices.find(v => v.name === savedVoice);
     } else {
         // Default to first
-        currentVoice = jaVoices[0];
+        targetVoice = jaVoices[0];
+    }
+
+    if (targetVoice) {
+        voiceSelect.value = targetVoice.name;
+        currentVoice = targetVoice;
     }
 }
 
 // iOS/Chrome voice loading quirk
 speechSynthesis.onvoiceschanged = loadVoices;
+
+// Aggressive polling for iOS
+let voiceLoadAttempts = 0;
+const voiceLoadInterval = setInterval(() => {
+    loadVoices();
+    voiceLoadAttempts++;
+    if (voicesLoaded || voiceLoadAttempts > 20) { // Stop after 10 seconds
+        clearInterval(voiceLoadInterval);
+    }
+}, 500);
+
 // Initial load attempt
 loadVoices();
+
+// Trigger load on Settings Open
+if (settingsBtn) {
+    addTouchListener(settingsBtn, () => {
+        settingsModal.style.display = 'flex';
+        loadVoices(); // Force check when opening settings
+    });
+}
+
+// Unlock Audio Context on first interaction (iOS requirement)
+let audioUnlocked = false;
+function unlockAudio() {
+    if (audioUnlocked) return;
+
+    // Play silent utterance to warm up engine
+    const uttr = new SpeechSynthesisUtterance('');
+    speechSynthesis.speak(uttr);
+    audioUnlocked = true;
+
+    // Also try loading voices again as interaction might have unblocked them
+    loadVoices();
+
+    // Remove listeners
+    document.body.removeEventListener('touchstart', unlockAudio);
+    document.body.removeEventListener('click', unlockAudio);
+}
+
+document.body.addEventListener('touchstart', unlockAudio, { once: true });
+document.body.addEventListener('click', unlockAudio, { once: true });
+
 
 if (voiceSelect) {
     voiceSelect.addEventListener('change', (e) => {
@@ -437,7 +492,7 @@ function speakChar(text) {
     speechSynthesis.cancel();
     const uttr = new SpeechSynthesisUtterance(text);
     uttr.lang = 'ja-JP';
-    uttr.rate = 1.0; // Slightly slower for clarity
+    uttr.rate = 1.0;
     if (currentVoice) {
         uttr.voice = currentVoice;
     }
