@@ -456,11 +456,10 @@ if (settingsBtn) {
 let audioUnlocked = false;
 function unlockAudio() {
     if (audioUnlocked) return;
-
-    // Play silent utterance to warm up engine
-    const uttr = new SpeechSynthesisUtterance('');
-    speechSynthesis.speak(uttr);
     audioUnlocked = true;
+
+    // Automatically trigger the iOS unlock logic (plays 'あ')
+    unlockSpeechForIOS();
 
     // Also try loading voices again as interaction might have unblocked them
     loadVoices();
