@@ -480,6 +480,8 @@ function unlockSpeechForIOS() {
 
     const dummy = new SpeechSynthesisUtterance('あ');
     dummy.lang = 'ja-JP';
+    // Chrome GC Bug Fix: Keep reference
+    window.lastUtterance = dummy;
     window.speechSynthesis.speak(dummy);
 }
 
@@ -533,6 +535,10 @@ function speakChar(text) {
         console.error('Speech synthesis error:', event);
         // Optional: Visual feedback if needed, but console is good for now
     };
+
+    // Chrome GC Bug Fix: Keep reference
+    window.lastUtterance = uttr;
+    uttr.onend = () => { window.lastUtterance = null; };
 
     speechSynthesis.speak(uttr);
 }
