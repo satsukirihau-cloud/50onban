@@ -473,6 +473,25 @@ function unlockAudio() {
 document.body.addEventListener('touchstart', unlockAudio, { once: true });
 document.body.addEventListener('click', unlockAudio, { once: true });
 
+// Explicit iOS Unlock (User Request)
+let iosSpeechUnlocked = false;
+function unlockSpeechForIOS() {
+    if (iosSpeechUnlocked) return;
+    iosSpeechUnlocked = true;
+
+    const dummy = new SpeechSynthesisUtterance('あ');
+    dummy.lang = 'ja-JP';
+    window.speechSynthesis.speak(dummy);
+}
+
+const unlockSpeechBtn = document.getElementById('unlockSpeech');
+if (unlockSpeechBtn) {
+    unlockSpeechBtn.addEventListener('click', () => {
+        unlockSpeechForIOS();
+        alert('音声が有効になりました。この後は普通に話すボタンで再生できます。');
+    });
+}
+
 
 if (voiceSelect) {
     voiceSelect.addEventListener('change', (e) => {
