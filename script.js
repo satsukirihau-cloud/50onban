@@ -376,28 +376,22 @@ addTouchListener(backspaceBtn, () => {
 
 // --- Speech & Voice Handling ---
 
-let currentVoice = null;
+let currentVoice = null; // null or 'default' or Voice Object
 const voiceSelect = document.getElementById('voiceSelect');
 let voicesLoaded = false;
 
 function loadVoices() {
-    // If we already have a valid selection and voices are loaded, we might not need to do much,
-    // but on iOS, getVoices() can return empty array initially.
     const voices = speechSynthesis.getVoices();
-
-    // Filter for Japanese voices
     const jaVoices = voices.filter(voice => voice.lang.includes('ja') || voice.lang.includes('JP'));
-
-    if (jaVoices.length === 0) {
-        // Only show "Loading..." if we really have nothing
-        if (voiceSelect.options.length <= 1) {
-            voiceSelect.innerHTML = '<option value="">読み込み中...</option>';
-        }
-        return;
-    }
 
     voicesLoaded = true;
     voiceSelect.innerHTML = '';
+
+    // Always add "System Default" option first
+    const defaultOption = document.createElement('option');
+    defaultOption.value = 'default';
+    defaultOption.textContent = '標準 (システム設定)';
+    voiceSelect.appendChild(defaultOption);
 
     jaVoices.forEach(voice => {
         const option = document.createElement('option');
@@ -415,16 +409,20 @@ function loadVoices() {
 
     // Restore selection or default
     const savedVoice = localStorage.getItem('selectedVoice');
-    let targetVoice = null;
+    let targetVoice = 'default'; // Default to system default
 
-    if (savedVoice && jaVoices.some(v => v.name === savedVoice)) {
-        targetVoice = jaVoices.find(v => v.name === savedVoice);
-    } else {
-        // Default to first
-        targetVoice = jaVoices[0];
+    if (savedVoice) {
+        if (savedVoice === 'default') {
+            targetVoice = 'default';
+        } else if (jaVoices.some(v => v.name === savedVoice)) {
+            targetVoice = jaVoices.find(v => v.name === savedVoice);
+        }
     }
 
-    if (targetVoice) {
+    if (targetVoice === 'default') {
+        voiceSelect.value = 'default';
+        currentVoice = 'default';
+    } else if (targetVoice) {
         voiceSelect.value = targetVoice.name;
         currentVoice = targetVoice;
     }
@@ -438,7 +436,7 @@ let voiceLoadAttempts = 0;
 const voiceLoadInterval = setInterval(() => {
     loadVoices();
     voiceLoadAttempts++;
-    if (voicesLoaded || voiceLoadAttempts > 20) { // Stop after 10 seconds
+    if ((voicesLoaded && voiceSelect.options.length > 1) || voiceLoadAttempts > 20) {
         clearInterval(voiceLoadInterval);
     }
 }, 500);
@@ -479,8 +477,12 @@ document.body.addEventListener('click', unlockAudio, { once: true });
 if (voiceSelect) {
     voiceSelect.addEventListener('change', (e) => {
         const voiceName = e.target.value;
-        const voices = speechSynthesis.getVoices();
-        currentVoice = voices.find(v => v.name === voiceName);
+        if (voiceName === 'default') {
+            currentVoice = 'default';
+        } else {
+            const voices = speechSynthesis.getVoices();
+            currentVoice = voices.find(v => v.name === voiceName);
+        }
         localStorage.setItem('selectedVoice', voiceName);
 
         // Test speak
@@ -493,9 +495,17 @@ function speakChar(text) {
     const uttr = new SpeechSynthesisUtterance(text);
     uttr.lang = 'ja-JP';
     uttr.rate = 1.0;
-    if (currentVoice) {
+
+    if (currentVoice && currentVoice !== 'default') {
         uttr.voice = currentVoice;
     }
+    // If currentVoice is 'default' or null, we don't set .voice, letting browser decide.
+
+    uttr.onerror = (event) => {
+        console.error('Speech synthesis error:', event);
+        // Optional: Visual feedback if needed, but console is good for now
+    };
+
     speechSynthesis.speak(uttr);
 }
 
