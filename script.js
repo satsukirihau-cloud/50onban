@@ -237,27 +237,22 @@ function addTouchListener(element, handler) {
 function addFlickListener(element, item) {
     // Changed to Tap-Select interaction
     addTouchListener(element, (e) => {
-        // Show Popup
-        // Calculate position to keep it on screen if possible, or just center on click
-        // Using clientX/Y from event
-        let x = e.clientX;
-        let y = e.clientY;
-
-        // If it's a mouse click (no clientX/Y in some cases?), fallback
-        if (!x && e.touches && e.touches[0]) {
-            x = e.touches[0].clientX;
-            y = e.touches[0].clientY;
-        }
-
-        showFlickPopup(x, y, item);
+        // Show Popup centered on the key
+        showFlickPopup(element, item);
     });
 }
 
-function showFlickPopup(x, y, item) {
+function showFlickPopup(targetElement, item) {
     if (!flickPopup) return;
+
+    // Get target element position
+    const rect = targetElement.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
     flickPopup.style.display = 'grid';
-    flickPopup.style.left = `${x}px`;
-    flickPopup.style.top = `${y}px`; // Center on tap
+    flickPopup.style.left = `${centerX}px`;
+    flickPopup.style.top = `${centerY}px`;
 
     // Populate items
     const map = {
@@ -379,12 +374,80 @@ addTouchListener(backspaceBtn, () => {
     updateSuggestions();
 });
 
+// --- Speech & Voice Handling ---
+
+let currentVoice = null;
+const voiceSelect = document.getElementById('voiceSelect');
+
+function loadVoices() {
+    const voices = speechSynthesis.getVoices();
+    const jaVoices = voices.filter(voice => voice.lang.includes('ja') || voice.lang.includes('JP'));
+
+    voiceSelect.innerHTML = '';
+
+    if (jaVoices.length === 0) {
+        const option = document.createElement('option');
+        option.textContent = '日本語音声が見つかりません';
+        voiceSelect.appendChild(option);
+        return;
+    }
+
+    jaVoices.forEach(voice => {
+        const option = document.createElement('option');
+        option.value = voice.name;
+        // Try to make label friendlier
+        let label = voice.name;
+        if (voice.name.includes('Siri')) label = `Siri (${voice.name})`;
+        if (voice.name.includes('Kyoko')) label = 'Kyoko (女性)';
+        if (voice.name.includes('Otoya')) label = 'Otoya (男性)';
+
+        option.textContent = label;
+        voiceSelect.appendChild(option);
+    });
+
+    // Restore selection or default
+    const savedVoice = localStorage.getItem('selectedVoice');
+    if (savedVoice && jaVoices.some(v => v.name === savedVoice)) {
+        voiceSelect.value = savedVoice;
+        currentVoice = jaVoices.find(v => v.name === savedVoice);
+    } else {
+        // Default to first
+        currentVoice = jaVoices[0];
+    }
+}
+
+// iOS/Chrome voice loading quirk
+speechSynthesis.onvoiceschanged = loadVoices;
+// Initial load attempt
+loadVoices();
+
+if (voiceSelect) {
+    voiceSelect.addEventListener('change', (e) => {
+        const voiceName = e.target.value;
+        const voices = speechSynthesis.getVoices();
+        currentVoice = voices.find(v => v.name === voiceName);
+        localStorage.setItem('selectedVoice', voiceName);
+
+        // Test speak
+        speakChar('音声を設定しました');
+    });
+}
+
+function speakChar(text) {
+    speechSynthesis.cancel();
+    const uttr = new SpeechSynthesisUtterance(text);
+    uttr.lang = 'ja-JP';
+    uttr.rate = 1.0; // Slightly slower for clarity
+    if (currentVoice) {
+        uttr.voice = currentVoice;
+    }
+    speechSynthesis.speak(uttr);
+}
+
 addTouchListener(speakBtn, () => {
     const text = displayText.value;
     if (text) {
-        const uttr = new SpeechSynthesisUtterance(text);
-        uttr.lang = 'ja-JP';
-        speechSynthesis.speak(uttr);
+        speakChar(text);
     }
 });
 

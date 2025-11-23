@@ -51,6 +51,12 @@
                 <span class="close-btn" id="closeSettingsBtn">&times;</span>
             </div>
             <div class="setting-item">
+                <label for="voiceSelect">音声:</label>
+                <select id="voiceSelect">
+                    <option value="">読み込み中...</option>
+                </select>
+            </div>
+            <div class="setting-item">
                 <label for="fontSelect">フォント:</label>
                 <select id="fontSelect">
                     <option value="'M PLUS Rounded 1c', sans-serif">丸ゴシック (標準)</option>
@@ -144,6 +150,16 @@
             </div>
         </div>
     </div>
+
+    <!-- Flick Popup -->
+    <div id="flickPopup" class="flick-popup" style="display: none;">
+        <div class="flick-item top"></div>
+        <div class="flick-item left"></div>
+        <div class="flick-item center"></div>
+        <div class="flick-item right"></div>
+        <div class="flick-item bottom"></div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 
