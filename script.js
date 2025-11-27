@@ -469,6 +469,7 @@ function unlockAudio() {
     document.body.removeEventListener('click', unlockAudio);
 }
 
+document.body.addEventListener('pointerdown', unlockAudio, { once: true });
 document.body.addEventListener('touchstart', unlockAudio, { once: true });
 document.body.addEventListener('click', unlockAudio, { once: true });
 
@@ -478,11 +479,13 @@ function unlockSpeechForIOS() {
     if (iosSpeechUnlocked) return;
     iosSpeechUnlocked = true;
 
-    const dummy = new SpeechSynthesisUtterance('あ');
+    const dummy = new SpeechSynthesisUtterance(''); // Silent
+    dummy.volume = 0; // Ensure silence
     dummy.lang = 'ja-JP';
     // Chrome GC Bug Fix: Keep reference
     window.lastUtterance = dummy;
     window.speechSynthesis.speak(dummy);
+    window.speechSynthesis.resume(); // Ensure it's not paused
 }
 
 const unlockSpeechBtn = document.getElementById('unlockSpeech');
@@ -539,6 +542,20 @@ function speakChar(text) {
     // Chrome GC Bug Fix: Keep reference
     window.lastUtterance = uttr;
     uttr.onend = () => { window.lastUtterance = null; };
+
+    // Ensure not paused
+    if (speechSynthesis.paused) {
+        speechSynthesis.resume();
+    }
+
+    // Fallback if voice not loaded yet
+    if ((!currentVoice || currentVoice === 'default') && !voicesLoaded) {
+        const voices = speechSynthesis.getVoices();
+        const jaVoice = voices.find(v => v.lang.includes('ja') || v.lang.includes('JP'));
+        if (jaVoice) {
+            uttr.voice = jaVoice;
+        }
+    }
 
     speechSynthesis.speak(uttr);
 }

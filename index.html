@@ -8,10 +8,16 @@
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&family=Rajdhani:wght@500;700&family=Orbitron:wght@500;700&display=swap"
+        rel="stylesheet">
 </head>
 
 <body>
+    <div class="sci-fi-bg">
+        <div class="grid-lines"></div>
+        <div class="particles"></div>
+    </div>
     <div class="app-container">
         <div class="display-area">
             <textarea id="displayText" readonly placeholder="ここに文字が表示されます"></textarea>
@@ -19,6 +25,7 @@
                 <button id="speakBtn" class="control-btn speak">話す</button>
                 <button id="clearBtn" class="control-btn clear">クリア</button>
                 <button id="backspaceBtn" class="control-btn backspace">一文字消す</button>
+
                 <button id="settingsBtn" class="control-btn settings">設定</button>
             </div>
         </div>
@@ -156,6 +163,8 @@
             </div>
         </div>
     </div>
+
+
 
     <!-- Flick Popup -->
     <div id="flickPopup" class="flick-popup" style="display: none;">
