@@ -151,13 +151,7 @@ function handleInput(char) {
     updateSuggestions();
 }
 
-function speakChar(text) {
-    speechSynthesis.cancel();
-    const uttr = new SpeechSynthesisUtterance(text);
-    uttr.lang = 'ja-JP';
-    uttr.rate = 1.2;
-    speechSynthesis.speak(uttr);
-}
+// Duplicate speakChar removed
 
 function addDakuten(type) {
     const lastChar = displayText.value.slice(-1);
@@ -454,24 +448,52 @@ if (settingsBtn) {
 
 // Unlock Audio Context on first interaction (iOS requirement)
 let audioUnlocked = false;
+let audioContext = null;
+
 function unlockAudio() {
     if (audioUnlocked) return;
     audioUnlocked = true;
 
-    // Automatically trigger the iOS unlock logic (plays 'あ')
+    // 1. Web Audio API Unlock (Silent Buffer)
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            audioContext = new AudioContext();
+            const buffer = audioContext.createBuffer(1, 1, 22050);
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+            if (source.start) {
+                source.start(0);
+            } else {
+                source.noteOn(0); // Legacy
+            }
+            // Resume if suspended (common in newer iOS)
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+    } catch (e) {
+        console.error("AudioContext unlock failed", e);
+    }
+
+    // 2. Speech Synthesis Unlock
     unlockSpeechForIOS();
 
-    // Also try loading voices again as interaction might have unblocked them
+    // 3. Reload voices just in case
     loadVoices();
 
     // Remove listeners
-    document.body.removeEventListener('touchstart', unlockAudio);
-    document.body.removeEventListener('click', unlockAudio);
+    const events = ['touchstart', 'touchend', 'click', 'keydown'];
+    events.forEach(evt => {
+        document.body.removeEventListener(evt, unlockAudio, { capture: true });
+    });
 }
 
-document.body.addEventListener('pointerdown', unlockAudio, { once: true });
-document.body.addEventListener('touchstart', unlockAudio, { once: true });
-document.body.addEventListener('click', unlockAudio, { once: true });
+const unlockEvents = ['touchstart', 'touchend', 'click', 'keydown'];
+unlockEvents.forEach(evt => {
+    document.body.addEventListener(evt, unlockAudio, { capture: true, once: true });
+});
 
 // Explicit iOS Unlock (User Request)
 let iosSpeechUnlocked = false;
@@ -479,13 +501,22 @@ function unlockSpeechForIOS() {
     if (iosSpeechUnlocked) return;
     iosSpeechUnlocked = true;
 
-    const dummy = new SpeechSynthesisUtterance(''); // Silent
-    dummy.volume = 0; // Ensure silence
+    // Use a space instead of empty string, and non-zero volume
+    const dummy = new SpeechSynthesisUtterance(' ');
+    dummy.volume = 0.01; // Low volume but not zero
+    dummy.pitch = 1.0;
+    dummy.rate = 1.0;
     dummy.lang = 'ja-JP';
+
     // Chrome GC Bug Fix: Keep reference
     window.lastUtterance = dummy;
+
+    window.speechSynthesis.cancel(); // Clear any stuck queue
     window.speechSynthesis.speak(dummy);
-    window.speechSynthesis.resume(); // Ensure it's not paused
+
+    if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+    }
 }
 
 const unlockSpeechBtn = document.getElementById('unlockSpeech');
@@ -524,6 +555,10 @@ if (voiceSelect) {
 }
 
 function speakChar(text) {
+    // Ensure not paused (Critical for iOS)
+    if (speechSynthesis.paused) {
+        speechSynthesis.resume();
+    }
     speechSynthesis.cancel();
     const uttr = new SpeechSynthesisUtterance(text);
     uttr.lang = 'ja-JP';
