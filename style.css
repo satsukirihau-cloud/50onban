@@ -15,6 +15,8 @@
     user-select: none;
     /* Prevent selection for app-like feel */
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    /* Disable double-tap zoom */
 }
 
 body,
@@ -42,7 +44,8 @@ html {
     padding-left: env(safe-area-inset-left, 8px);
     padding-right: env(safe-area-inset-right, 8px);
 
-    gap: 8px;
+    /* Dynamic gaps based on screen size */
+    gap: 1vh;
 }
 
 /* Display Area (Top) */
@@ -296,6 +299,12 @@ html {
     border-radius: 12px;
     width: 90%;
     max-width: 400px;
+    max-height: 90vh;
+    /* Limit height */
+    overflow-y: auto;
+    /* Enable scrolling */
+    -webkit-overflow-scrolling: touch;
+    /* Smooth scrolling on iOS */
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
