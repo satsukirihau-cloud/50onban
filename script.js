@@ -370,18 +370,81 @@ addTouchListener(backspaceBtn, () => {
 
 // --- Speech & Voice Handling ---
 
-let currentVoice = null; // null or 'default' or Voice Object
+let currentVoice = null;
 const voiceSelect = document.getElementById('voiceSelect');
 let voicesLoaded = false;
+let audioContext = null;
+let isAudioUnlocked = false;
 
+// Unlock Audio - simplified and exposed for direct calling
+function tryUnlockAudio() {
+    if (isAudioUnlocked && audioContext && audioContext.state === 'running') return;
+
+    // 1. Unlock Audio Context
+    if (!audioContext) {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                audioContext = new AudioContext();
+            }
+        } catch (e) {
+            console.error("AudioContext init error", e);
+        }
+    }
+
+    if (audioContext) {
+        // Resume if suspended
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+        // Play silent buffer for iOS
+        try {
+            const buffer = audioContext.createBuffer(1, 1, 22050);
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+            if (source.start) source.start(0);
+            else source.noteOn(0);
+        } catch (e) {
+            // Ignore buffer errors if already running
+        }
+    }
+
+    // 2. Unlock Speech Synthesis (only needs to run once)
+    if (!isAudioUnlocked) {
+        isAudioUnlocked = true;
+        const dummy = new SpeechSynthesisUtterance(' ');
+        dummy.volume = 0;
+        dummy.pitch = 1.0;
+        dummy.rate = 1.0;
+        dummy.lang = 'ja-JP';
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(dummy);
+    }
+}
+
+// Global unlock listeners for the very first interaction anywhere
+const unlockEvents = ['touchstart', 'touchend', 'click', 'keydown'];
+const globalUnlockHandler = () => {
+    tryUnlockAudio();
+    // We don't remove listeners immediately to ensure retries if first attempt fails
+    // but effectively tryUnlockAudio gates itself.
+};
+unlockEvents.forEach(evt => {
+    document.body.addEventListener(evt, globalUnlockHandler, { capture: true, once: false });
+});
+
+// Voice Loading
 function loadVoices() {
     const voices = speechSynthesis.getVoices();
-    const jaVoices = voices.filter(voice => voice.lang.includes('ja') || voice.lang.includes('JP'));
+    if (voices.length === 0) return;
 
     voicesLoaded = true;
+    const jaVoices = voices.filter(voice => voice.lang.includes('ja') || voice.lang.includes('JP'));
+
+    const previousSelection = voiceSelect.value;
     voiceSelect.innerHTML = '';
 
-    // Always add "System Default" option first
     const defaultOption = document.createElement('option');
     defaultOption.value = 'default';
     defaultOption.textContent = '標準 (システム設定)';
@@ -390,216 +453,102 @@ function loadVoices() {
     jaVoices.forEach(voice => {
         const option = document.createElement('option');
         option.value = voice.name;
-        // Try to make label friendlier
         let label = voice.name;
         if (voice.name.includes('Siri')) label = `Siri (${voice.name})`;
-        if (voice.name.includes('Kyoko')) label = 'Kyoko (女性)';
-        if (voice.name.includes('Otoya')) label = 'Otoya (男性)';
-        if (voice.name.includes('Google')) label = `Google (${voice.name})`;
-
+        else if (voice.name.includes('Google')) label = `Google (${voice.name})`;
         option.textContent = label;
         voiceSelect.appendChild(option);
     });
 
-    // Restore selection or default
-    const savedVoice = localStorage.getItem('selectedVoice');
-    let targetVoice = 'default'; // Default to system default
-
-    if (savedVoice) {
-        if (savedVoice === 'default') {
-            targetVoice = 'default';
-        } else if (jaVoices.some(v => v.name === savedVoice)) {
-            targetVoice = jaVoices.find(v => v.name === savedVoice);
+    // Restore selection
+    const savedVoiceName = localStorage.getItem('selectedVoice');
+    let voiceToSelect = 'default';
+    if (savedVoiceName && savedVoiceName !== 'default') {
+        const found = jaVoices.find(v => v.name === savedVoiceName);
+        if (found) {
+            voiceToSelect = found.name;
+            currentVoice = found;
         }
     }
-
-    if (targetVoice === 'default') {
-        voiceSelect.value = 'default';
-        currentVoice = 'default';
-    } else if (targetVoice) {
-        voiceSelect.value = targetVoice.name;
-        currentVoice = targetVoice;
-    }
+    voiceSelect.value = voiceToSelect;
 }
 
-// iOS/Chrome voice loading quirk
-speechSynthesis.onvoiceschanged = loadVoices;
+if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = loadVoices;
+}
 
-// Aggressive polling for iOS
-let voiceLoadAttempts = 0;
 const voiceLoadInterval = setInterval(() => {
-    loadVoices();
-    voiceLoadAttempts++;
-    if ((voicesLoaded && voiceSelect.options.length > 1) || voiceLoadAttempts > 20) {
+    if (voicesLoaded) {
         clearInterval(voiceLoadInterval);
+        return;
     }
-}, 500);
+    const voices = speechSynthesis.getVoices();
+    if (voices.length > 0) loadVoices();
+}, 100);
 
-// Initial load attempt
-loadVoices();
-
-// Trigger load on Settings Open
-if (settingsBtn) {
-    addTouchListener(settingsBtn, () => {
-        settingsModal.style.display = 'flex';
-        loadVoices(); // Force check when opening settings
-    });
-}
-
-// Unlock Audio Context on first interaction (iOS requirement)
-let audioUnlocked = false;
-let audioContext = null;
-
-function unlockAudio() {
-    if (audioUnlocked) return;
-    audioUnlocked = true;
-
-    // 1. Web Audio API Unlock (Silent Buffer)
-    try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (AudioContext) {
-            audioContext = new AudioContext();
-            const buffer = audioContext.createBuffer(1, 1, 22050);
-            const source = audioContext.createBufferSource();
-            source.buffer = buffer;
-            source.connect(audioContext.destination);
-            if (source.start) {
-                source.start(0);
-            } else {
-                source.noteOn(0); // Legacy
-            }
-            // Resume if suspended (common in newer iOS)
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
-        }
-    } catch (e) {
-        console.error("AudioContext unlock failed", e);
-    }
-
-    // 2. Speech Synthesis Unlock
-    unlockSpeechForIOS();
-
-    // 3. Reload voices just in case
-    loadVoices();
-
-    // Remove listeners
-    const events = ['touchstart', 'touchend', 'click', 'keydown'];
-    events.forEach(evt => {
-        document.body.removeEventListener(evt, unlockAudio, { capture: true });
-    });
-}
-
-const unlockEvents = ['touchstart', 'touchend', 'click', 'keydown'];
-unlockEvents.forEach(evt => {
-    document.body.addEventListener(evt, unlockAudio, { capture: true, once: true });
-});
-
-// Explicit iOS Unlock (User Request)
-let iosSpeechUnlocked = false;
-function unlockSpeechForIOS() {
-    if (iosSpeechUnlocked) return;
-    iosSpeechUnlocked = true;
-
-    // Use a space instead of empty string, and non-zero volume
-    const dummy = new SpeechSynthesisUtterance(' ');
-    dummy.volume = 0.01; // Low volume but not zero
-    dummy.pitch = 1.0;
-    dummy.rate = 1.0;
-    dummy.lang = 'ja-JP';
-
-    // Chrome GC Bug Fix: Keep reference
-    window.lastUtterance = dummy;
-
-    window.speechSynthesis.cancel(); // Clear any stuck queue
-    window.speechSynthesis.speak(dummy);
-
-    if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-    }
-}
-
-const unlockSpeechBtn = document.getElementById('unlockSpeech');
-if (unlockSpeechBtn) {
-    unlockSpeechBtn.addEventListener('click', () => {
-        unlockSpeechForIOS();
-        // Visual feedback instead of alert
-        unlockSpeechBtn.textContent = '有効化されました！';
-        unlockSpeechBtn.style.backgroundColor = '#48bb78'; // Green
-        unlockSpeechBtn.disabled = true;
-
-        // Optional: Reset after a few seconds if you want to allow retrying
-        setTimeout(() => {
-            unlockSpeechBtn.textContent = '音声出力を有効にする (iOS用)';
-            unlockSpeechBtn.style.backgroundColor = '#ed8936';
-            unlockSpeechBtn.disabled = false;
-        }, 3000);
-    });
-}
-
-
+// UI Handling
 if (voiceSelect) {
     voiceSelect.addEventListener('change', (e) => {
         const voiceName = e.target.value;
+        const voices = speechSynthesis.getVoices();
         if (voiceName === 'default') {
-            currentVoice = 'default';
+            currentVoice = null;
         } else {
-            const voices = speechSynthesis.getVoices();
             currentVoice = voices.find(v => v.name === voiceName);
         }
         localStorage.setItem('selectedVoice', voiceName);
-
-        // Test speak
-        speakChar('音声を設定しました');
+        speakChar('音声を変更しました');
     });
 }
 
 function speakChar(text) {
-    // Ensure not paused (Critical for iOS)
-    if (speechSynthesis.paused) {
-        speechSynthesis.resume();
-    }
+    if (!text) return;
+
+    // Ensure unlocked (JIC)
+    tryUnlockAudio();
+
     speechSynthesis.cancel();
+    if (speechSynthesis.paused) speechSynthesis.resume();
+
     const uttr = new SpeechSynthesisUtterance(text);
     uttr.lang = 'ja-JP';
     uttr.rate = 1.0;
+    uttr.pitch = 1.0;
 
-    if (currentVoice && currentVoice !== 'default') {
+    if (currentVoice) {
         uttr.voice = currentVoice;
-    }
-    // If currentVoice is 'default' or null, we don't set .voice, letting browser decide.
-
-    uttr.onerror = (event) => {
-        console.error('Speech synthesis error:', event);
-        // Optional: Visual feedback if needed, but console is good for now
-    };
-
-    // Chrome GC Bug Fix: Keep reference
-    window.lastUtterance = uttr;
-    uttr.onend = () => { window.lastUtterance = null; };
-
-    // Ensure not paused
-    if (speechSynthesis.paused) {
-        speechSynthesis.resume();
-    }
-
-    // Fallback if voice not loaded yet
-    if ((!currentVoice || currentVoice === 'default') && !voicesLoaded) {
+    } else {
         const voices = speechSynthesis.getVoices();
-        const jaVoice = voices.find(v => v.lang.includes('ja') || v.lang.includes('JP'));
-        if (jaVoice) {
-            uttr.voice = jaVoice;
-        }
+        const bestDefault = voices.find(v => v.lang === 'ja-JP' || v.lang === 'ja_JP');
+        if (bestDefault) uttr.voice = bestDefault;
     }
 
     speechSynthesis.speak(uttr);
+
+    window.lastUtterance = uttr;
+    uttr.onend = () => { window.lastUtterance = null; };
+    uttr.onerror = (e) => { console.error('Speech Error:', e); };
+}
+
+// Manual Unlock Button
+const unlockSpeechBtn = document.getElementById('unlockSpeech');
+if (unlockSpeechBtn) {
+    unlockSpeechBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        tryUnlockAudio();
+        speakChar('音声出力を有効にしました');
+        unlockSpeechBtn.textContent = '有効化されました！';
+        unlockSpeechBtn.style.backgroundColor = '#48bb78';
+        setTimeout(() => {
+            unlockSpeechBtn.textContent = '音声出力を有効にする (iOS用)';
+            unlockSpeechBtn.style.backgroundColor = '#ed8936';
+        }, 2000);
+    });
 }
 
 addTouchListener(speakBtn, () => {
     const text = displayText.value;
-    if (text) {
-        speakChar(text);
-    }
+    if (text) speakChar(text);
 });
 
 // --- Picture Mode ---
