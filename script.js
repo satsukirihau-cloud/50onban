@@ -386,28 +386,41 @@ class AudioController {
         }
         this.loadVoices();
 
-        // Polling for voices (reliable fallback)
+        // Polling loop for voices
         const interval = setInterval(() => {
             if (this.voicesLoaded) clearInterval(interval);
             else this.loadVoices();
         }, 500);
+
+        // Invisible Unlock Strategy
+        const unlockEvents = ['touchstart', 'touchend', 'click', 'keydown'];
+        const unlockHandler = () => {
+            if (!this.isUnlocked) {
+                this.unlock();
+                // We keep trying until strictly unlocked or just run once? 
+                // Let's run once per event type to be safe, then remove.
+            }
+        };
+        unlockEvents.forEach(evt => {
+            document.body.addEventListener(evt, unlockHandler, { capture: true, once: true });
+        });
     }
 
     async unlock() {
-        if (this.isUnlocked) return;
+        if (this.isUnlocked && this.ctx && this.ctx.state === 'running') return;
 
-        console.log("AudioController: Unlocking...");
+        console.log("AudioController: Attempting Unlock...");
 
-        // 1. Initialize AudioContext
+        // 1. AudioContext
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (AudioContext) {
+            if (AudioContext && !this.ctx) {
                 this.ctx = new AudioContext();
-                // Resume if suspended
+            }
+            if (this.ctx) {
                 if (this.ctx.state === 'suspended') {
                     await this.ctx.resume();
                 }
-                // Play silent buffer
                 const buffer = this.ctx.createBuffer(1, 1, 22050);
                 const source = this.ctx.createBufferSource();
                 source.buffer = buffer;
@@ -419,12 +432,10 @@ class AudioController {
             console.error("AudioController: Context Error", e);
         }
 
-        // 2. Initialize SpeechSynthesis (iOS Wake-up)
-        // Speak strictly something empty but valid
+        // 2. SpeechSynthesis (Critical for iOS)
         this.speakInternal(' ', true);
 
         this.isUnlocked = true;
-        console.log("AudioController: Unlocked!");
     }
 
     loadVoices() {
@@ -445,7 +456,7 @@ class AudioController {
 
         select.innerHTML = '';
 
-        // Default Option
+        // Default
         const defOpt = document.createElement('option');
         defOpt.value = 'default';
         defOpt.textContent = '標準 (システム設定)';
@@ -461,7 +472,7 @@ class AudioController {
             select.appendChild(opt);
         });
 
-        // Restore Selection
+        // Restore
         let target = 'default';
         if (savedVoiceName && jaVoices.find(v => v.name === savedVoiceName)) {
             target = savedVoiceName;
@@ -483,24 +494,21 @@ class AudioController {
     }
 
     speak(text) {
-        // Public method
+        // Ensure unlocked if it somehow wasn't (e.g. programmatic call without interaction)
+        if (!this.isUnlocked) this.unlock();
         this.speakInternal(text, false);
     }
 
     speakInternal(text, isUnlock = false) {
-        speechSynthesis.cancel(); // Always cancel previous
-
+        speechSynthesis.cancel();
         if (speechSynthesis.paused) speechSynthesis.resume();
 
         const uttr = new SpeechSynthesisUtterance(text);
         uttr.lang = 'ja-JP';
         uttr.rate = 1.0;
 
-        if (isUnlock) {
-            uttr.volume = 0; // Silent for unlock
-        } else {
-            uttr.volume = 1;
-        }
+        if (isUnlock) uttr.volume = 0;
+        else uttr.volume = 1;
 
         if (this.currentVoice) {
             uttr.voice = this.currentVoice;
@@ -523,23 +531,17 @@ class AudioController {
 const audioCtrl = new AudioController();
 audioCtrl.init();
 
-// --- Start Overlay Logic ---
-const startOverlay = document.getElementById('startOverlay');
-const startBtn = document.getElementById('startBtn');
+// --- Settings and UI Connections ---
 
-if (startBtn) {
-    startBtn.addEventListener('click', async () => {
-        await audioCtrl.unlock();
-        startOverlay.style.opacity = '0';
-        setTimeout(() => {
-            startOverlay.style.display = 'none';
-            initBoard(); // Initialize board after start
-            if (gridSizeSelect) updateGridSize(gridSizeSelect.value); // Update grid size after start
-        }, 500);
+// Re-connect Settings Button (Critical Fix)
+if (settingsBtn) {
+    addTouchListener(settingsBtn, () => {
+        settingsModal.style.display = 'flex';
+        audioCtrl.loadVoices(); // Refresh voices when opening settings
     });
 }
 
-// --- Voice Select Listener ---
+// Connect Voice Select
 const voiceSelect = document.getElementById('voiceSelect'); // Re-declare voiceSelect here
 if (voiceSelect) {
     voiceSelect.addEventListener('change', (e) => {
@@ -547,7 +549,7 @@ if (voiceSelect) {
     });
 }
 
-// Manual Unlock (Fallback Button in Settings)
+// Manual Unlock (Fallback)
 const unlockSpeechBtn = document.getElementById('unlockSpeech');
 if (unlockSpeechBtn) {
     unlockSpeechBtn.addEventListener('click', () => {
@@ -562,20 +564,8 @@ if (unlockSpeechBtn) {
     });
 }
 
-// --- Interaction Handlers ---
-addTouchListener(speakBtn, () => {
-    const text = displayText.value;
-    if (text) audioCtrl.speak(text);
-});
-
-// Update handleInput to use audioCtrl
-// (Note: handleInput needs to be updated or we rely on 'speakChar' being replaced? 
-// The implementation below assumes specific integration points. 
-// We should update 'speakChar' function used by other parts to delegate to audioCtrl 
-// OR replace 'handleInput' to use audioCtrl.speak directly.)
-// Since 'speakChar' was global, let's redefine it as a proxy for backward compatibility
-// with the rest of script.js that I might not be replacing fully in this block.
-
+// Hook into global handler or specific buttons
+// (Note: speakChar global proxy)
 function speakChar(text) {
     audioCtrl.speak(text);
 }
