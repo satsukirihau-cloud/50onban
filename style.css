@@ -1,302 +1,394 @@
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&display=swap');
+
 :root {
-    --primary-color: #4a90e2;
-    --bg-color: #f0f4f8;
-    --text-color: #333;
-    --board-bg: #ffffff;
-    --btn-bg: #e2e8f0;
-    --btn-hover: #cbd5e1;
-    --accent-color: #ff6b6b;
+    --primary-color: #4299e1;
+    --secondary-color: #2b6cb0;
+    --accent-color: #63b3ed;
+    --bg-color: #0f172a;
+    --panel-bg: rgba(30, 41, 59, 0.8);
+    --text-color: #e2e8f0;
+    --highlight-color: #fbd38d;
 }
 
-* {
-    box-sizing: border-box;
+body {
     margin: 0;
     padding: 0;
-    user-select: none;
-    /* Prevent selection for app-like feel */
-    -webkit-tap-highlight-color: transparent;
-}
-
-body,
-html {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    /* No scrolling */
     font-family: 'M PLUS Rounded 1c', sans-serif;
     background-color: var(--bg-color);
+    color: var(--text-color);
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
 }
 
+/* --- Start Overlay --- */
+.start-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.95);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(10px);
+    transition: opacity 0.5s ease;
+}
+
+.start-content {
+    text-align: center;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.start-content h1 {
+    font-size: 3rem;
+    color: var(--highlight-color);
+    margin-bottom: 20px;
+    text-shadow: 0 0 20px rgba(251, 211, 141, 0.5);
+}
+
+.start-content p {
+    font-size: 1.2rem;
+    margin-bottom: 40px;
+    line-height: 1.6;
+}
+
+.start-btn {
+    padding: 15px 60px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(66, 153, 225, 0.5);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.start-btn:active {
+    transform: scale(0.95);
+    box-shadow: 0 2px 8px rgba(66, 153, 225, 0.5);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Background (Sci-Fi) --- */
+.sci-fi-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    overflow: hidden;
+}
+
+.grid-lines {
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    background-image: 
+        linear-gradient(rgba(66, 153, 225, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(66, 153, 225, 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    transform: perspective(500px) rotateX(60deg) translateY(-100px) translateZ(-200px);
+    animation: gridMove 20s linear infinite;
+}
+
+@keyframes gridMove {
+    0% { transform: perspective(500px) rotateX(60deg) translateY(0) translateZ(-200px); }
+    100% { transform: perspective(500px) rotateX(60deg) translateY(50px) translateZ(-200px); }
+}
+
+/* --- Layout --- */
 .app-container {
     display: flex;
     flex-direction: column;
-    width: 100vw;
     height: 100vh;
-    /* Fallback for browsers that don't support dvh */
-    height: 100dvh;
-    /* Use dynamic viewport height for mobile browsers */
-
-    /* Safe Area Insets for iPhone X+ / iPad */
-    padding-top: env(safe-area-inset-top, 8px);
-    padding-bottom: env(safe-area-inset-bottom, 8px);
-    padding-left: env(safe-area-inset-left, 8px);
-    padding-right: env(safe-area-inset-right, 8px);
-
-    gap: 8px;
+    padding: 10px;
+    box-sizing: border-box;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
-/* Display Area (Top) */
+/* --- Display Area --- */
 .display-area {
     flex: 0 0 auto;
-    /* Allow it to size based on content/min-height */
-    /* height: 12%;  <-- Removed fixed percentage */
-    min-height: 60px;
-    max-height: 20vh;
-    /* Limit height on small screens */
+    background: var(--panel-bg);
+    border-radius: 15px;
+    padding: 15px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
-    gap: 8px;
-    background: var(--board-bg);
-    padding: 8px;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    flex-direction: column;
+    gap: 10px;
 }
 
 #displayText {
-    flex: 1;
+    width: 100%;
+    height: 80px; /* Fixed height for better stability */
     font-size: 2rem;
-    /* Adjusted for better fit */
     border: none;
-    background: transparent;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text-color);
+    border-radius: 8px;
+    padding: 10px;
+    box-sizing: border-box;
     resize: none;
     outline: none;
-    color: var(--text-color);
-    font-family: inherit;
-    font-weight: 900;
-    min-width: 0;
-    /* Allow shrinking */
 }
 
 .control-buttons {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    justify-content: center;
-    min-width: 100px;
-    /* Slightly smaller min-width */
-    flex-shrink: 0;
-    /* Prevent buttons from collapsing */
+    gap: 10px;
+    justify-content: flex-end;
 }
 
 .control-btn {
-    flex: 1;
+    padding: 10px 20px;
     border: none;
-    border-radius: 6px;
-    font-size: 1rem;
-    font-weight: 800;
+    border-radius: 8px;
+    font-weight: bold;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s;
     font-family: inherit;
-    padding: 0;
-    /* Remove default padding to fit text */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.control-btn.speak {
-    background-color: #48bb78;
-    color: white;
-}
-
-.control-btn.clear {
-    background-color: #f56565;
-    color: white;
-}
-
-.control-btn.backspace {
-    background-color: #ed8936;
     color: white;
 }
 
 .control-btn:active {
-    transform: scale(0.98);
-    opacity: 0.9;
+    transform: scale(0.95);
 }
 
-/* Landscape Adjustments for Mobile/Tablet */
-@media (orientation: landscape) and (max-height: 600px) {
-    .app-container {
-        flex-direction: row;
-        /* Side-by-side layout */
-    }
+.speak { background-color: #48bb78; }
+.clear { background-color: #e53e3e; }
+.backspace { background-color: #ed8936; }
+.settings { background-color: #a0aec0; }
 
-    .display-area {
-        flex-direction: column;
-        width: 25%;
-        /* Take up left side */
-        height: 100%;
-        /* Full height */
-        max-height: none;
-        order: 2;
-        /* Put it on the right or left? Let's keep standard flow or adjust. 
-                   Actually, standard flow is Top->Bottom. 
-                   If we do row, it becomes Left->Right.
-                   Let's try keeping column but compacting header. */
-    }
-
-    /* Revert to column layout but optimize space */
-    .app-container {
-        flex-direction: column;
-    }
-
-    .display-area {
-        flex-direction: row;
-        height: auto;
-        min-height: 50px;
-        flex: 0 0 auto;
-        width: 100%;
-        order: 0;
-    }
-
-    .control-buttons {
-        flex-direction: row;
-        /* Horizontal buttons in landscape header */
-        min-width: auto;
-        width: auto;
-        flex: 0 0 auto;
-    }
-
-    #displayText {
-        font-size: 1.5rem;
-    }
-
-    .view-area {
-        /* Ensure grid takes remaining space */
-        flex: 1;
-    }
-}
-
-/* Specific fix for iPhone Landscape (notch handling) */
-@media (orientation: landscape) {
-    .app-container {
-        padding-left: max(env(safe-area-inset-left), 8px);
-        padding-right: max(env(safe-area-inset-right), 8px);
-    }
-}
-
-/* Suggestion Area */
+/* --- Suggestion Area --- */
 .suggestion-area {
-    flex: 0 0 40px;
+    flex: 0 0 50px;
     display: flex;
-    gap: 8px;
     overflow-x: auto;
-    padding: 0 4px;
-    align-items: center;
-    background: rgba(255, 255, 255, 0.5);
-    border-radius: 8px;
+    gap: 10px;
+    padding: 5px 0;
+    margin-bottom: 5px;
     white-space: nowrap;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 .suggestion-chip {
-    background: #fff;
-    border: 2px solid var(--primary-color);
+    background: rgba(66, 153, 225, 0.2);
+    border: 1px solid var(--primary-color);
+    padding: 5px 15px;
     border-radius: 20px;
-    padding: 4px 10px;
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: var(--primary-color);
     cursor: pointer;
-    flex-shrink: 0;
+    font-size: 1.2rem;
+    display: inline-flex;
+    align-items: center;
+    transition: background 0.2s;
 }
 
 .suggestion-chip:active {
     background: var(--primary-color);
-    color: white;
 }
 
-/* Unified View Area */
+/* --- View Area (Board & Picture) --- */
 .view-area {
-    flex: 1;
-    min-height: 0;
-    /* Crucial for nested flex scrolling */
-    overflow: hidden;
-    border-radius: 12px;
-    background: var(--board-bg);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    padding: 4px;
+    flex: 1; /* Take remaining space */
+    background: var(--panel-bg);
+    border-radius: 15px;
+    padding: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden; /* Prevent spillover */
 }
 
-/* Board Grid (Kana) */
+/* --- Board Grid --- */
 .board-grid {
     display: grid;
-    grid-template-columns: repeat(12, 1fr);
-    grid-template-rows: repeat(5, 1fr);
-    gap: 4px;
-}
-
-/* Picture Grid */
-.picture-grid {
-    display: grid;
-    /* Default 3x2, overridden by JS */
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    gap: 8px;
-    padding: 8px;
+    gap: 5px;
     height: 100%;
-    width: 100%;
-    box-sizing: border-box;
 }
 
 .char-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
     display: flex;
-    align-items: center;
     justify-content: center;
-    background-color: var(--btn-bg);
-    border-radius: 6px;
-    font-size: 4vmin;
-    /* Responsive font size */
-    font-weight: 900;
-    /* Extra bold */
-    color: var(--text-color);
+    align-items: center;
+    font-size: 4vmin; /* Responsive font size */
+    font-weight: bold;
     cursor: pointer;
-    transition: all 0.1s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    user-select: none;
+    transition: background 0.1s, transform 0.1s;
 }
 
 .char-btn:active {
-    background-color: var(--primary-color);
-    color: white;
-    transform: translateY(2px);
-    box-shadow: none;
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(0.95);
+    box-shadow: 0 0 10px var(--primary-color);
 }
 
-.control-btn.settings {
-    background-color: #a0aec0;
-    color: white;
+/* Flick Mode specific */
+.char-btn.flick-key, .flick-key {
+    background: rgba(99, 179, 237, 0.15);
+    border: 1px solid rgba(99, 179, 237, 0.3);
+    flex-direction: column;
+    gap: 2px;
 }
 
-/* Modal Styles */
-.modal {
-    display: none;
-    /* Hidden by default */
+.flick-key span {
+    font-size: 5vmin;
+}
+.flick-key .sub-chars {
+    font-size: 2vmin;
+    opacity: 0.7;
+}
+
+/* --- Flick Popup --- */
+.flick-popup {
     position: fixed;
+    width: 250px;
+    height: 250px;
+    /* Centering logic handled in JS via top/left */
+    transform: translate(-50%, -50%); 
+    background: rgba(15, 23, 42, 0.9);
+    border-radius: 50%;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    gap: 5px;
+    padding: 10px;
     z-index: 1000;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    border: 2px solid var(--primary-color);
+}
+
+.flick-item {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    color: white;
+}
+
+.flick-item.center { grid-column: 2; grid-row: 2; background: var(--primary-color); }
+.flick-item.top { grid-column: 2; grid-row: 1; }
+.flick-item.left { grid-column: 1; grid-row: 2; }
+.flick-item.right { grid-column: 3; grid-row: 2; }
+.flick-item.bottom { grid-column: 2; grid-row: 3; }
+
+/* --- Picture Mode --- */
+.picture-mode-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.picture-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+}
+
+.toggle-label {
+    margin-left: 10px;
+    font-weight: bold;
+}
+
+.picture-grid {
+    display: grid;
+    /* Columns/Rows set by JS */
+    gap: 10px;
+    height: 100%;
+    flex: 1;
+}
+
+.picture-card {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 12px;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    cursor: pointer;
+    transition: transform 0.1s;
+    position: relative;
+    overflow: hidden;
+}
+
+.picture-card:active {
+    transform: scale(0.98);
+}
+
+.picture-card img {
+    width: 60%;
+    height: 60%;
+    object-fit: contain;
+    margin-bottom: 5px;
+}
+
+.picture-card span {
+    font-size: 2.5vmin;
+    font-weight: bold;
+    text-align: center;
+}
+
+/* Text Only Card Style */
+.picture-card.text-only img {
+    display: none;
+}
+.picture-card.text-only span {
+    font-size: 5vmin;
+}
+
+/* Edit Mode Visuals */
+.picture-card.editing {
+    border: 3px dashed var(--clear-btn-color, #e53e3e);
+    animation: pulse border 1s infinite alternate;
+}
+
+/* --- Modal --- */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed;
+    z-index: 2000;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    align-items: center;
+    background-color: rgba(0,0,0,0.7);
     justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(5px);
 }
 
 .modal-content {
-    background-color: #fff;
+    background-color: #2d3748;
     padding: 20px;
-    border-radius: 12px;
+    border-radius: 15px;
     width: 90%;
-    max-width: 400px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .modal-header {
@@ -304,167 +396,102 @@ html {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
 }
 
 .close-btn {
-    color: #aaa;
-    font-size: 28px;
-    font-weight: bold;
+    font-size: 2rem;
     cursor: pointer;
-    padding: 0 10px;
+    color: #a0aec0;
 }
-
-.close-btn:hover,
-.close-btn:focus {
-    color: black;
-    text-decoration: none;
-    cursor: pointer;
-}
+.close-btn:hover { color: white; }
 
 .setting-item {
     margin-bottom: 15px;
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .setting-item label {
-    font-weight: bold;
-    font-size: 1.1rem;
+    flex: 0 0 120px;
+    margin-right: 10px;
 }
 
-.setting-item select,
-.setting-item input[type="color"] {
+.setting-item select, .setting-item input[type="range"] {
+    flex: 1;
     padding: 8px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    font-size: 1rem;
+    border-radius: 5px;
+    border: none;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .char-btn {
-        font-size: 3.5vmin;
-    }
-
-    #displayText {
-        font-size: 3vmin;
-    }
-}
-
-/* Mode Grid Styles */
+/* --- Mode Switcher (Tab-like) --- */
 .mode-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: auto;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.mode-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.mode-item.active {
+    border-color: var(--primary-color);
+    background: rgba(66, 153, 225, 0.2);
+}
+
+/* --- Icon Selection Grid --- */
+.icon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 10px;
     margin-top: 10px;
 }
 
-/* Picture Mode Container */
-.picture-mode-container {
-    display: flex;
-    flex-direction: column;
-}
-
-.picture-card {
-    background: #fff;
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.icon-option {
+    background: white;
+    border-radius: 8px;
+    padding: 5px;
     cursor: pointer;
-    transition: transform 0.1s;
-    height: 100%;
-    width: 100%;
-    min-height: 0;
-    /* Prevent flex item overflow */
-    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    aspect-ratio: 1;
 }
 
-.picture-card:active {
-    transform: scale(0.98);
-    background-color: #f0f9ff;
-}
-
-.picture-card img {
-    width: 60%;
-    height: 60%;
+.icon-option img {
+    width: 80%;
+    height: 80%;
     object-fit: contain;
-    margin-bottom: 8px;
 }
 
-.picture-card span {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #333;
-    text-align: center;
-    word-break: break-all;
-    padding: 0 5px;
+.icon-option.selected {
+    outline: 3px solid var(--primary-color);
 }
 
-.picture-card.text-only span {
-    font-size: 2.5rem;
-    /* Larger font for text-only cards */
-}
-
-.picture-card.text-only img {
-    display: none;
-}
-
-.mode-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: #f7fafc;
-    border: 2px solid transparent;
-    border-radius: 10px;
-    padding: 10px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.picture-controls {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    padding: 0 10px 10px;
-    gap: 10px;
-}
-
-.toggle-label {
-    font-weight: bold;
-    color: #555;
-}
-
-/* Toggle Switch */
+/* --- Switch Toggle (for Edit Mode) --- */
 .switch {
     position: relative;
     display: inline-block;
     width: 50px;
     height: 28px;
 }
-
-.switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
+.switch input { opacity: 0; width: 0; height: 0; }
 .slider {
     position: absolute;
     cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    top: 0; left: 0; right: 0; bottom: 0;
     background-color: #ccc;
     transition: .4s;
 }
-
 .slider:before {
     position: absolute;
     content: "";
@@ -475,201 +502,14 @@ html {
     background-color: white;
     transition: .4s;
 }
+input:checked + .slider { background-color: var(--primary-color); }
+input:checked + .slider:before { transform: translateX(22px); }
+.slider.round { border-radius: 34px; }
+.slider.round:before { border-radius: 50%; }
 
-input:checked+.slider {
-    background-color: var(--primary-color);
-}
-
-input:focus+.slider {
-    box-shadow: 0 0 1px var(--primary-color);
-}
-
-input:checked+.slider:before {
-    transform: translateX(22px);
-}
-
-.slider.round {
-    border-radius: 34px;
-}
-
-.slider.round:before {
-    border-radius: 50%;
-}
-
-/* Edit Mode Visuals */
-.picture-card.editing {
-    border: 3px dashed var(--accent-color);
-    animation: shake 0.5s;
-}
-
-@keyframes shake {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    25% {
-        transform: rotate(1deg);
-    }
-
-    50% {
-        transform: rotate(0deg);
-    }
-
-    75% {
-        transform: rotate(-1deg);
-    }
-
-    100% {
-        transform: rotate(0deg);
-    }
-}
-
-/* Icon Grid in Modal */
-.icon-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-top: 10px;
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.icon-option {
-    border: 2px solid transparent;
-    border-radius: 8px;
-    padding: 5px;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.icon-option img {
-    width: 40px;
-    height: 40px;
-    object-fit: contain;
-}
-
-.icon-option.selected {
-    border-color: var(--primary-color);
-    background-color: #ebf8ff;
-}
-
-.mode-item img {
-    width: 50px;
-    height: 50px;
-    object-fit: contain;
-    margin-bottom: 5px;
-}
-
-.mode-item span {
-    font-size: 0.9rem;
-    font-weight: bold;
-    color: #555;
-}
-
-.mode-item.active {
-    border-color: var(--primary-color);
-    background-color: #ebf8ff;
-}
-
-.mode-item:active {
-    transform: scale(0.95);
-}
-
-/* Flick Popup Styles */
-.flick-popup {
-    position: fixed;
-    width: 150px;
-    height: 150px;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 50%;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    z-index: 2000;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr;
-    pointer-events: auto;
-    /* Allow interaction */
-    transform: translate(-50%, -50%);
-    /* Center on touch point */
-}
-
-.flick-item {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 1.5rem;
-    color: var(--primary-color);
-    border-radius: 50%;
-    cursor: pointer;
-    /* Show it's clickable */
-}
-
-.flick-item:active {
-    background: var(--primary-color);
-    color: white;
-}
-
-.flick-item.center {
-    grid-column: 2;
-    grid-row: 2;
-    background: #e2e8f0;
-}
-
-.flick-item.top {
-    grid-column: 2;
-    grid-row: 1;
-}
-
-.flick-item.left {
-    grid-column: 1;
-    grid-row: 2;
-}
-
-.flick-item.right {
-    grid-column: 3;
-    grid-row: 2;
-}
-
-.flick-item.bottom {
-    grid-column: 2;
-    grid-row: 3;
-}
-
-.flick-item.active {
-    background: var(--primary-color);
-    color: white;
-    transform: scale(1.2);
-}
-
-/* 10-key Grid Styles */
-.board-grid.flick-mode {
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(4, 1fr);
-    gap: 8px;
-}
-
-.flick-key {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--btn-bg);
-    border-radius: 12px;
-    font-size: 2rem;
-    font-weight: 900;
-    color: var(--text-color);
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    user-select: none;
-    touch-action: none;
-    /* Prevent scrolling while flicking */
-}
-
-.flick-key .sub-chars {
-    font-size: 0.8rem;
-    color: #888;
-    margin-top: 4px;
+/* Mobile Adjustments */
+@media (max-height: 600px) {
+    .app-container { height: 100vh; padding: 5px; }
+    #displayText { height: 50px; font-size: 1.5rem; }
+    .control-btn { padding: 5px 10px; font-size: 0.9rem; }
 }

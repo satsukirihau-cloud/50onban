@@ -368,175 +368,191 @@ addTouchListener(backspaceBtn, () => {
     updateSuggestions();
 });
 
-// --- Speech & Voice Handling ---
+// --- AudioController Class ---
 
-let currentVoice = null;
-const voiceSelect = document.getElementById('voiceSelect');
-let voicesLoaded = false;
-let audioContext = null;
-let isAudioUnlocked = false;
+class AudioController {
+    constructor() {
+        this.ctx = null;
+        this.voices = [];
+        this.currentVoice = null;
+        this.isUnlocked = false;
+        this.voicesLoaded = false;
+    }
 
-// Unlock Audio - simplified and exposed for direct calling
-function tryUnlockAudio() {
-    if (isAudioUnlocked && audioContext && audioContext.state === 'running') return;
+    init() {
+        // Voice loading listeners
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = () => this.loadVoices();
+        }
+        this.loadVoices();
 
-    // 1. Unlock Audio Context
-    if (!audioContext) {
+        // Polling for voices (reliable fallback)
+        const interval = setInterval(() => {
+            if (this.voicesLoaded) clearInterval(interval);
+            else this.loadVoices();
+        }, 500);
+    }
+
+    async unlock() {
+        if (this.isUnlocked) return;
+
+        console.log("AudioController: Unlocking...");
+
+        // 1. Initialize AudioContext
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             if (AudioContext) {
-                audioContext = new AudioContext();
+                this.ctx = new AudioContext();
+                // Resume if suspended
+                if (this.ctx.state === 'suspended') {
+                    await this.ctx.resume();
+                }
+                // Play silent buffer
+                const buffer = this.ctx.createBuffer(1, 1, 22050);
+                const source = this.ctx.createBufferSource();
+                source.buffer = buffer;
+                source.connect(this.ctx.destination);
+                if (source.start) source.start(0);
+                else source.noteOn(0);
             }
         } catch (e) {
-            console.error("AudioContext init error", e);
+            console.error("AudioController: Context Error", e);
         }
+
+        // 2. Initialize SpeechSynthesis (iOS Wake-up)
+        // Speak strictly something empty but valid
+        this.speakInternal(' ', true);
+
+        this.isUnlocked = true;
+        console.log("AudioController: Unlocked!");
     }
 
-    if (audioContext) {
-        // Resume if suspended
-        if (audioContext.state === 'suspended') {
-            audioContext.resume();
-        }
-        // Play silent buffer for iOS
-        try {
-            const buffer = audioContext.createBuffer(1, 1, 22050);
-            const source = audioContext.createBufferSource();
-            source.buffer = buffer;
-            source.connect(audioContext.destination);
-            if (source.start) source.start(0);
-            else source.noteOn(0);
-        } catch (e) {
-            // Ignore buffer errors if already running
-        }
-    }
-
-    // 2. Unlock Speech Synthesis (only needs to run once)
-    if (!isAudioUnlocked) {
-        isAudioUnlocked = true;
-        const dummy = new SpeechSynthesisUtterance(' ');
-        dummy.volume = 0;
-        dummy.pitch = 1.0;
-        dummy.rate = 1.0;
-        dummy.lang = 'ja-JP';
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(dummy);
-    }
-}
-
-// Global unlock listeners for the very first interaction anywhere
-const unlockEvents = ['touchstart', 'touchend', 'click', 'keydown'];
-const globalUnlockHandler = () => {
-    tryUnlockAudio();
-    // We don't remove listeners immediately to ensure retries if first attempt fails
-    // but effectively tryUnlockAudio gates itself.
-};
-unlockEvents.forEach(evt => {
-    document.body.addEventListener(evt, globalUnlockHandler, { capture: true, once: false });
-});
-
-// Voice Loading
-function loadVoices() {
-    const voices = speechSynthesis.getVoices();
-    if (voices.length === 0) return;
-
-    voicesLoaded = true;
-    const jaVoices = voices.filter(voice => voice.lang.includes('ja') || voice.lang.includes('JP'));
-
-    const previousSelection = voiceSelect.value;
-    voiceSelect.innerHTML = '';
-
-    const defaultOption = document.createElement('option');
-    defaultOption.value = 'default';
-    defaultOption.textContent = '標準 (システム設定)';
-    voiceSelect.appendChild(defaultOption);
-
-    jaVoices.forEach(voice => {
-        const option = document.createElement('option');
-        option.value = voice.name;
-        let label = voice.name;
-        if (voice.name.includes('Siri')) label = `Siri (${voice.name})`;
-        else if (voice.name.includes('Google')) label = `Google (${voice.name})`;
-        option.textContent = label;
-        voiceSelect.appendChild(option);
-    });
-
-    // Restore selection
-    const savedVoiceName = localStorage.getItem('selectedVoice');
-    let voiceToSelect = 'default';
-    if (savedVoiceName && savedVoiceName !== 'default') {
-        const found = jaVoices.find(v => v.name === savedVoiceName);
-        if (found) {
-            voiceToSelect = found.name;
-            currentVoice = found;
-        }
-    }
-    voiceSelect.value = voiceToSelect;
-}
-
-if (speechSynthesis.onvoiceschanged !== undefined) {
-    speechSynthesis.onvoiceschanged = loadVoices;
-}
-
-const voiceLoadInterval = setInterval(() => {
-    if (voicesLoaded) {
-        clearInterval(voiceLoadInterval);
-        return;
-    }
-    const voices = speechSynthesis.getVoices();
-    if (voices.length > 0) loadVoices();
-}, 100);
-
-// UI Handling
-if (voiceSelect) {
-    voiceSelect.addEventListener('change', (e) => {
-        const voiceName = e.target.value;
+    loadVoices() {
         const voices = speechSynthesis.getVoices();
-        if (voiceName === 'default') {
-            currentVoice = null;
+        if (voices.length === 0) return;
+
+        this.voices = voices;
+        this.voicesLoaded = true;
+        this.updateVoiceSelect();
+    }
+
+    updateVoiceSelect() {
+        const select = document.getElementById('voiceSelect');
+        if (!select) return;
+
+        const jaVoices = this.voices.filter(v => v.lang.includes('ja') || v.lang.includes('JP'));
+        const savedVoiceName = localStorage.getItem('selectedVoice');
+
+        select.innerHTML = '';
+
+        // Default Option
+        const defOpt = document.createElement('option');
+        defOpt.value = 'default';
+        defOpt.textContent = '標準 (システム設定)';
+        select.appendChild(defOpt);
+
+        jaVoices.forEach(voice => {
+            const opt = document.createElement('option');
+            opt.value = voice.name;
+            let label = voice.name;
+            if (label.includes('Siri')) label = `Siri (${label})`;
+            else if (label.includes('Google')) label = `Google (${label})`;
+            opt.textContent = label;
+            select.appendChild(opt);
+        });
+
+        // Restore Selection
+        let target = 'default';
+        if (savedVoiceName && jaVoices.find(v => v.name === savedVoiceName)) {
+            target = savedVoiceName;
+            this.currentVoice = jaVoices.find(v => v.name === savedVoiceName);
         } else {
-            currentVoice = voices.find(v => v.name === voiceName);
+            this.currentVoice = null;
+        }
+        select.value = target;
+    }
+
+    setVoice(voiceName) {
+        if (voiceName === 'default') {
+            this.currentVoice = null;
+        } else {
+            this.currentVoice = this.voices.find(v => v.name === voiceName);
         }
         localStorage.setItem('selectedVoice', voiceName);
-        speakChar('音声を変更しました');
+        this.speak('音声を変更しました');
+    }
+
+    speak(text) {
+        // Public method
+        this.speakInternal(text, false);
+    }
+
+    speakInternal(text, isUnlock = false) {
+        speechSynthesis.cancel(); // Always cancel previous
+
+        if (speechSynthesis.paused) speechSynthesis.resume();
+
+        const uttr = new SpeechSynthesisUtterance(text);
+        uttr.lang = 'ja-JP';
+        uttr.rate = 1.0;
+
+        if (isUnlock) {
+            uttr.volume = 0; // Silent for unlock
+        } else {
+            uttr.volume = 1;
+        }
+
+        if (this.currentVoice) {
+            uttr.voice = this.currentVoice;
+        } else {
+            // Smart default fallback
+            const best = this.voices.find(v => v.lang === 'ja-JP' || v.lang === 'ja_JP');
+            if (best) uttr.voice = best;
+        }
+
+        uttr.onerror = (e) => console.error("Speech Error:", e);
+
+        // iOS Garbage Collection Fix
+        window.activeUtterance = uttr;
+        uttr.onend = () => { window.activeUtterance = null; };
+
+        speechSynthesis.speak(uttr);
+    }
+}
+
+const audioCtrl = new AudioController();
+audioCtrl.init();
+
+// --- Start Overlay Logic ---
+const startOverlay = document.getElementById('startOverlay');
+const startBtn = document.getElementById('startBtn');
+
+if (startBtn) {
+    startBtn.addEventListener('click', async () => {
+        await audioCtrl.unlock();
+        startOverlay.style.opacity = '0';
+        setTimeout(() => {
+            startOverlay.style.display = 'none';
+            initBoard(); // Initialize board after start
+            if (gridSizeSelect) updateGridSize(gridSizeSelect.value); // Update grid size after start
+        }, 500);
     });
 }
 
-function speakChar(text) {
-    if (!text) return;
-
-    // Ensure unlocked (JIC)
-    tryUnlockAudio();
-
-    speechSynthesis.cancel();
-    if (speechSynthesis.paused) speechSynthesis.resume();
-
-    const uttr = new SpeechSynthesisUtterance(text);
-    uttr.lang = 'ja-JP';
-    uttr.rate = 1.0;
-    uttr.pitch = 1.0;
-
-    if (currentVoice) {
-        uttr.voice = currentVoice;
-    } else {
-        const voices = speechSynthesis.getVoices();
-        const bestDefault = voices.find(v => v.lang === 'ja-JP' || v.lang === 'ja_JP');
-        if (bestDefault) uttr.voice = bestDefault;
-    }
-
-    speechSynthesis.speak(uttr);
-
-    window.lastUtterance = uttr;
-    uttr.onend = () => { window.lastUtterance = null; };
-    uttr.onerror = (e) => { console.error('Speech Error:', e); };
+// --- Voice Select Listener ---
+const voiceSelect = document.getElementById('voiceSelect'); // Re-declare voiceSelect here
+if (voiceSelect) {
+    voiceSelect.addEventListener('change', (e) => {
+        audioCtrl.setVoice(e.target.value);
+    });
 }
 
-// Manual Unlock Button
+// Manual Unlock (Fallback Button in Settings)
 const unlockSpeechBtn = document.getElementById('unlockSpeech');
 if (unlockSpeechBtn) {
-    unlockSpeechBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        tryUnlockAudio();
-        speakChar('音声出力を有効にしました');
+    unlockSpeechBtn.addEventListener('click', () => {
+        audioCtrl.unlock();
+        audioCtrl.speak('音声出力を有効にしました');
         unlockSpeechBtn.textContent = '有効化されました！';
         unlockSpeechBtn.style.backgroundColor = '#48bb78';
         setTimeout(() => {
@@ -546,16 +562,28 @@ if (unlockSpeechBtn) {
     });
 }
 
+// --- Interaction Handlers ---
 addTouchListener(speakBtn, () => {
     const text = displayText.value;
-    if (text) speakChar(text);
+    if (text) audioCtrl.speak(text);
 });
+
+// Update handleInput to use audioCtrl
+// (Note: handleInput needs to be updated or we rely on 'speakChar' being replaced? 
+// The implementation below assumes specific integration points. 
+// We should update 'speakChar' function used by other parts to delegate to audioCtrl 
+// OR replace 'handleInput' to use audioCtrl.speak directly.)
+// Since 'speakChar' was global, let's redefine it as a proxy for backward compatibility
+// with the rest of script.js that I might not be replacing fully in this block.
+
+function speakChar(text) {
+    audioCtrl.speak(text);
+}
+
 
 // --- Picture Mode ---
 
 const modeItems = document.querySelectorAll('.mode-item');
-const pictureAreaContainer = document.getElementById('pictureAreaContainer');
-const pictureArea = document.getElementById('pictureArea');
 const editModeToggle = document.getElementById('editModeToggle');
 const editCardModal = document.getElementById('editCardModal');
 const closeEditCardBtn = document.getElementById('closeEditCardBtn');
